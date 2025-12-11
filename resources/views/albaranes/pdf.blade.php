@@ -111,20 +111,34 @@
     <div class="info-section">
         <div class="info-box">
             <h3>PROVEEDOR</h3>
-            <p><strong>Nombre:</strong> {{ $albaran->proveedor }}</p>
-            @if($albaran->nif)
-            <p><strong>NIF/CIF:</strong> {{ $albaran->nif }}</p>
+            @if($albaran->proveedor)
+            <p><strong>Nombre:</strong> {{ $albaran->proveedor->nombre }}</p>
+            @if($albaran->proveedor->cif)
+            <p><strong>NIF/CIF:</strong> {{ $albaran->proveedor->cif }}</p>
             @endif
-            @if($albaran->contacto)
-            <p><strong>Contacto:</strong> {{ $albaran->contacto }}</p>
+            @if($albaran->proveedor->contacto_principal)
+            <p><strong>Contacto:</strong> {{ $albaran->proveedor->contacto_principal }}</p>
+            @endif
+            @if($albaran->proveedor->telefono)
+            <p><strong>Teléfono:</strong> {{ $albaran->proveedor->telefono }}</p>
+            @endif
+            @if($albaran->proveedor->email)
+            <p><strong>Email:</strong> {{ $albaran->proveedor->email }}</p>
+            @endif
+            @else
+            <p>Sin proveedor asignado</p>
             @endif
         </div>
         <div class="info-box">
             <h3>DATOS DEL ALBARÁN</h3>
-            <p><strong>Fecha Albarán:</strong> {{ $albaran->fecha->format('d/m/Y') }}</p>
+            <p><strong>Nº Albarán Proveedor:</strong> {{ $albaran->numero_albaran }}</p>
+            @if($albaran->fecha_albaran)
+            <p><strong>Fecha Albarán Proveedor:</strong> {{ $albaran->fecha_albaran->format('d/m/Y') }}</p>
+            @endif
+            <p><strong>Fecha Recepción:</strong> {{ $albaran->fecha->format('d/m/Y') }}</p>
             <p><strong>Creado por:</strong> {{ $albaran->usuario->name ?? 'N/A' }}</p>
             @if($albaran->fecha_recepcion)
-            <p><strong>Fecha Recepción:</strong> {{ $albaran->fecha_recepcion->format('d/m/Y H:i') }}</p>
+            <p><strong>Fecha Confirmación:</strong> {{ $albaran->fecha_recepcion->format('d/m/Y H:i') }}</p>
             @endif
             <p><strong>Fecha Impresión:</strong> {{ now()->format('d/m/Y H:i') }}</p>
         </div>

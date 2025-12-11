@@ -16,8 +16,14 @@
                             <form method="GET" action="{{ route('albaranes.index') }}" id="formFiltros">
                                 <div class="row g-2">
                                     <div class="col-12">
-                                        <input type="text" name="proveedor" class="form-control form-control-sm" 
-                                               placeholder="Buscar por proveedor" value="{{ request('proveedor') }}">
+                                        <select name="proveedor_id" class="form-select form-select-sm">
+                                            <option value="">Todos los proveedores</option>
+                                            @foreach($proveedores as $proveedor)
+                                                <option value="{{ $proveedor->id }}" {{ request('proveedor_id') == $proveedor->id ? 'selected' : '' }}>
+                                                    {{ $proveedor->nombre }}
+                                                </option>
+                                            @endforeach
+                                        </select>
                                     </div>
                                 </div>
                                 <div class="row g-2 mt-1">
@@ -82,9 +88,11 @@
                                                     <strong>{{ $albaran->numero_albaran }}</strong>
                                                 </td>
                                                 <td>
-                                                    {{ $albaran->proveedor }}
-                                                    @if($albaran->nif)
-                                                    <br><small class="text-muted">{{ $albaran->nif }}</small>
+                                                    @if($albaran->proveedor)
+                                                        {{ $albaran->proveedor->nombre }}
+                                                        <br><small class="text-muted">{{ $albaran->proveedor->cif }}</small>
+                                                    @else
+                                                        <small class="text-muted">Sin proveedor</small>
                                                     @endif
                                                 </td>
                                                 <td class="text-center">

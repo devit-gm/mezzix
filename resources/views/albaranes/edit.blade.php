@@ -35,21 +35,16 @@
                                         </div>
                                         <div class="card-body">
                                             <div class="mb-3">
-                                                <label for="proveedor" class="form-label">Proveedor *</label>
-                                                <input type="text" class="form-control" id="proveedor" name="proveedor" 
-                                                       value="{{ old('proveedor', $albaran->proveedor) }}" required>
-                                            </div>
-
-                                            <div class="mb-3">
-                                                <label for="nif" class="form-label">NIF</label>
-                                                <input type="text" class="form-control" id="nif" name="nif" 
-                                                       value="{{ old('nif', $albaran->nif) }}">
-                                            </div>
-
-                                            <div class="mb-3">
-                                                <label for="contacto" class="form-label">Contacto</label>
-                                                <input type="text" class="form-control" id="contacto" name="contacto" 
-                                                       value="{{ old('contacto', $albaran->contacto) }}" placeholder="Teléfono, email, etc.">
+                                                <label for="proveedor_id" class="form-label">Proveedor *</label>
+                                                <select class="form-select" id="proveedor_id" name="proveedor_id" required>
+                                                    <option value="">Seleccione un proveedor</option>
+                                                    @foreach($proveedores as $proveedor)
+                                                        <option value="{{ $proveedor->id }}" 
+                                                                {{ old('proveedor_id', $albaran->proveedor_id) == $proveedor->id ? 'selected' : '' }}>
+                                                            {{ $proveedor->nombre }} ({{ $proveedor->cif }})
+                                                        </option>
+                                                    @endforeach
+                                                </select>
                                             </div>
                                         </div>
                                     </div>
@@ -69,7 +64,13 @@
                                             </div>
 
                                             <div class="mb-3">
-                                                <label for="fecha" class="form-label">Fecha *</label>
+                                                <label for="fecha_albaran" class="form-label">Fecha del Albarán del Proveedor</label>
+                                                <input type="date" class="form-control" id="fecha_albaran" name="fecha_albaran" 
+                                                       value="{{ old('fecha_albaran', $albaran->fecha_albaran ? $albaran->fecha_albaran->format('Y-m-d') : '') }}">
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label for="fecha" class="form-label">Fecha de Recepción *</label>
                                                 <input type="date" class="form-control" id="fecha" name="fecha" 
                                                        value="{{ old('fecha', $albaran->fecha->format('Y-m-d')) }}" required>
                                             </div>

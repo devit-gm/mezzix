@@ -3,6 +3,7 @@
 use App\Http\Controllers\AjustesController;
 use App\Http\Controllers\FamiliasController;
 use App\Http\Controllers\ProductosController;
+use App\Http\Controllers\ProveedoresController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\ServiciosController;
@@ -225,6 +226,17 @@ Route::middleware(['detect.site', 'auth'])->group(function () {
     Route::delete('/albaranes/{id}', [\App\Http\Controllers\AlbaranesController::class, 'destroy'])->name('albaranes.destroy');
     Route::post('/albaranes/{id}/confirmar', [\App\Http\Controllers\AlbaranesController::class, 'confirmarRecepcion'])->name('albaranes.confirmar');
     Route::get('/albaranes/{id}/pdf', [\App\Http\Controllers\AlbaranesController::class, 'pdf'])->name('albaranes.pdf');
+
+    // Proveedores
+    Route::get('/proveedores', [ProveedoresController::class, 'index'])->name('proveedores.index');
+    Route::get('/proveedores/create', [ProveedoresController::class, 'create'])->name('proveedores.create');
+    Route::post('/proveedores', [ProveedoresController::class, 'store'])->name('proveedores.store');
+    Route::get('/proveedores/{uuid}', [ProveedoresController::class, 'show'])->name('proveedores.show');
+    Route::get('/proveedores/{uuid}/edit', [ProveedoresController::class, 'edit'])->name('proveedores.edit');
+    Route::put('/proveedores/{uuid}', [ProveedoresController::class, 'update'])->name('proveedores.update');
+    Route::delete('/proveedores/{uuid}', [ProveedoresController::class, 'destroy'])->name('proveedores.destroy');
+    Route::post('/proveedores/{uuid}/toggle', [ProveedoresController::class, 'toggleActivo'])->name('proveedores.toggle');
+    Route::get('/proveedores-estadisticas', [ProveedoresController::class, 'estadisticas'])->name('proveedores.estadisticas');
 
     Route::get('/servicios', ServiciosController::class . '@index')->name('servicios.index');
     Route::get('/servicios/create', ServiciosController::class . '@create')->name('servicios.create');

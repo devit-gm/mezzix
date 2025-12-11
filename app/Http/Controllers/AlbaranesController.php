@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Albaran;
 use App\Models\AlbaranLinea;
 use App\Models\Producto;
+use App\Models\Proveedor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,7 @@ class AlbaranesController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Albaran::with('lineas', 'usuario');
+        $query = Albaran::with('lineas', 'usuario', 'proveedor');
 
         // Filtrar por estado
         if ($request->filled('estado')) {
@@ -24,8 +25,8 @@ class AlbaranesController extends Controller
         }
 
         // Filtrar por proveedor
-        if ($request->filled('proveedor')) {
-            $query->where('proveedor', 'like', '%' . $request->proveedor . '%');
+        if ($request->filled('proveedor_id')) {
+            $query->where('proveedor_id', $request->proveedor_id);
         }
 
         // Filtrar por fecha
@@ -37,8 +38,9 @@ class AlbaranesController extends Controller
         }
 
         $albaranes = $query->orderBy('fecha', 'desc')->paginate(20);
+        $proveedores = Proveedor::activo()->orderBy('nombre')->get();
 
-        return view('albaranes.index', compact('albaranes'));
+        return view('albaranes.index', compact('albaranes', 'proveedores'));
     }
 
     /**
@@ -48,11 +50,13 @@ class AlbaranesController extends Controller
     {
         try {
             $productos = Producto::with('familiaObj')->orderBy('nombre')->get();
+            $proveedores = Proveedor::activo()->orderBy('nombre')->get();
         } catch (\Exception $e) {
-            \Log::error('Error al cargar productos: ' . $e->getMessage());
+            \Log::error('Error al cargar datos: ' . $e->getMessage());
             $productos = collect([]);
+            $proveedores = collect([]);
         }
-        return view('albaranes.create', compact('productos'));
+        return view('albaranes.create', compact('productos', 'proveedores'));
     }
 
     /**
@@ -61,10 +65,9 @@ class AlbaranesController extends Controller
     public function store(Request $request)
     {
         $request->validate([
+            'proveedor_id' => 'required|exists:site.proveedores,id',
             'numero_albaran' => 'required|string|max:255',
-            'proveedor' => 'required|string|max:255',
-            'nif' => 'nullable|string|max:20',
-            'contacto' => 'nullable|string|max:255',
+            'fecha_albaran' => 'nullable|date',
             'fecha' => 'required|date',
             'observaciones' => 'nullable|string',
             'lineas' => 'required|array|min:1',
@@ -85,10 +88,9 @@ class AlbaranesController extends Controller
         try {
             // Crear el albarán
             $albaran = Albaran::create([
+                'proveedor_id' => $request->proveedor_id,
                 'numero_albaran' => $request->numero_albaran,
-                'proveedor' => $request->proveedor,
-                'nif' => $request->nif,
-                'contacto' => $request->contacto,
+                'fecha_albaran' => $request->fecha_albaran,
                 'fecha' => $request->fecha,
                 'estado' => 'pendiente',
                 'observaciones' => $request->observaciones,
@@ -139,7 +141,8 @@ class AlbaranesController extends Controller
         }
 
         $productos = Producto::with('familiaObj')->orderBy('nombre')->get();
-        return view('albaranes.edit', compact('albaran', 'productos'));
+        $proveedores = Proveedor::activo()->orderBy('nombre')->get();
+        return view('albaranes.edit', compact('albaran', 'productos', 'proveedores'));
     }
 
     /**
@@ -156,10 +159,9 @@ class AlbaranesController extends Controller
         }
 
         $request->validate([
+            'proveedor_id' => 'required|exists:site.proveedores,id',
             'numero_albaran' => 'required|string|max:255',
-            'proveedor' => 'required|string|max:255',
-            'nif' => 'nullable|string|max:20',
-            'contacto' => 'nullable|string|max:255',
+            'fecha_albaran' => 'nullable|date',
             'fecha' => 'required|date',
             'observaciones' => 'nullable|string',
             'lineas' => 'required|array|min:1',
@@ -182,10 +184,9 @@ class AlbaranesController extends Controller
         try {
             // Actualizar el albarán
             $albaran->update([
+                'proveedor_id' => $request->proveedor_id,
                 'numero_albaran' => $request->numero_albaran,
-                'proveedor' => $request->proveedor,
-                'nif' => $request->nif,
-                'contacto' => $request->contacto,
+                'fecha_albaran' => $request->fecha_albaran,
                 'fecha' => $request->fecha,
                 'observaciones' => $request->observaciones,
             ]);

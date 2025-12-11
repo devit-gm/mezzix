@@ -13,10 +13,9 @@ class Albaran extends Model
     protected $table = 'albaranes';
 
     protected $fillable = [
+        'proveedor_id',
         'numero_albaran',
-        'proveedor',
-        'nif',
-        'contacto',
+        'fecha_albaran',
         'fecha',
         'estado',
         'total',
@@ -27,6 +26,7 @@ class Albaran extends Model
 
     protected $casts = [
         'fecha' => 'date',
+        'fecha_albaran' => 'date',
         'fecha_recepcion' => 'datetime',
         'total' => 'decimal:2',
     ];
@@ -45,6 +45,14 @@ class Albaran extends Model
     public function usuario()
     {
         return $this->belongsTo(User::class, 'usuario_id');
+    }
+
+    /**
+     * Relación con el proveedor
+     */
+    public function proveedor()
+    {
+        return $this->belongsTo(Proveedor::class, 'proveedor_id');
     }
 
     /**
@@ -101,8 +109,8 @@ class Albaran extends Model
     /**
      * Scope para filtrar por proveedor
      */
-    public function scopeProveedor($query, $proveedor)
+    public function scopeProveedorId($query, $proveedorId)
     {
-        return $query->where('proveedor', 'like', "%{$proveedor}%");
+        return $query->where('proveedor_id', $proveedorId);
     }
 }

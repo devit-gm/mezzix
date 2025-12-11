@@ -651,7 +651,7 @@
                     
                     @if (Auth::user()->role_id < \App\Enums\Role::USUARIO_MESAS)
                     <li class="nav-item dropdown">
-                        <a id="navbarDropdown" class="nav-link dropdown-toggle {{ (request()->routeIs('usuarios.*') || request()->routeIs('familias.*') || request()->routeIs('productos.*') || request()->routeIs('servicios.*') || request()->routeIs('albaranes.*') || request()->routeIs('facturas.*')) ? 'active' : '' }}" href="#" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
+                        <a id="navbarDropdown" class="nav-link dropdown-toggle {{ (request()->routeIs('usuarios.*') || request()->routeIs('familias.*') || request()->routeIs('productos.*') || request()->routeIs('servicios.*') || request()->routeIs('proveedores.*') || request()->routeIs('albaranes.*') || request()->routeIs('facturas.*')) ? 'active' : '' }}" href="#" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
                             {{ __('GESTIÓN') }}
                         </a>
                         <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
@@ -660,6 +660,7 @@
                             <a class="dropdown-item {{ request()->routeIs('productos.*') ? 'active' : '' }}" href="{{ url('/productos') }}">{{ __('PRODUCTOS') }}</a>
                             <a class="dropdown-item {{ request()->routeIs('servicios.*') ? 'active' : '' }}" href="{{ url('/servicios') }}">{{ __('SERVICIOS') }}</a>
                             <div class="dropdown-divider"></div>
+                            <a class="dropdown-item {{ request()->routeIs('proveedores.*') ? 'active' : '' }}" href="{{ url('/proveedores') }}">{{ __('PROVEEDORES') }}</a>
                             <a class="dropdown-item {{ request()->routeIs('albaranes.*') ? 'active' : '' }}" href="{{ url('/albaranes') }}">{{ __('ALBARANES') }}</a>
                             @php
                                 try {
@@ -1037,6 +1038,9 @@
         }
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js?v=281120252245"></script>
+    
+    <!-- Offline Manager para PWA -->
+    <script src="{{ asset('js/offline-manager.js') }}?v={{ time() }}" defer></script>
     
     @stack('scripts')
 </body>

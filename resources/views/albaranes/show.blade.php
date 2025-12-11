@@ -38,12 +38,17 @@
                                         <i class="bi bi-person-badge"></i> Proveedor
                                     </div>
                                     <div class="card-body">
-                                        <p class="mb-2"><strong>Nombre:</strong> {{ $albaran->proveedor }}</p>
-                                        @if($albaran->nif)
-                                        <p class="mb-2"><strong>NIF:</strong> {{ $albaran->nif }}</p>
-                                        @endif
-                                        @if($albaran->contacto)
-                                        <p class="mb-0"><strong>Contacto:</strong> {{ $albaran->contacto }}</p>
+                                        @if($albaran->proveedor)
+                                            <p class="mb-2"><strong>Nombre:</strong> {{ $albaran->proveedor->nombre }}</p>
+                                            <p class="mb-2"><strong>CIF:</strong> {{ $albaran->proveedor->cif }}</p>
+                                            @if($albaran->proveedor->telefono)
+                                            <p class="mb-2"><strong>Teléfono:</strong> {{ $albaran->proveedor->telefono }}</p>
+                                            @endif
+                                            @if($albaran->proveedor->email)
+                                            <p class="mb-0"><strong>Email:</strong> {{ $albaran->proveedor->email }}</p>
+                                            @endif
+                                        @else
+                                            <p class="mb-0 text-muted">Sin proveedor asignado</p>
                                         @endif
                                     </div>
                                 </div>
@@ -56,10 +61,13 @@
                                         <i class="bi bi-file-text"></i> Datos del Albarán
                                     </div>
                                     <div class="card-body">
-                                        <p class="mb-2"><strong>Fecha:</strong> {{ $albaran->fecha->format('d/m/Y') }}</p>
+                                        @if($albaran->fecha_albaran)
+                                        <p class="mb-2"><strong>Fecha Albarán:</strong> {{ $albaran->fecha_albaran->format('d/m/Y') }}</p>
+                                        @endif
+                                        <p class="mb-2"><strong>Fecha Recepción:</strong> {{ $albaran->fecha->format('d/m/Y') }}</p>
                                         <p class="mb-2"><strong>Creado por:</strong> {{ $albaran->usuario->name ?? 'N/A' }}</p>
                                         @if($albaran->fecha_recepcion)
-                                        <p class="mb-2"><strong>Fecha Recepción:</strong> {{ $albaran->fecha_recepcion->format('d/m/Y H:i') }}</p>
+                                        <p class="mb-2"><strong>Confirmado:</strong> {{ $albaran->fecha_recepcion->format('d/m/Y H:i') }}</p>
                                         @endif
                                         @if($albaran->observaciones)
                                         <p class="mb-0"><strong>Observaciones:</strong> {{ $albaran->observaciones }}</p>

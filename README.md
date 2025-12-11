@@ -42,15 +42,22 @@
   - Cálculo automático de rentabilidad
 
 - **Sistema de Compras y Albaranes**
-  - Gestión de proveedores
+  - **Gestión de Proveedores**
+    - Ficha completa con datos fiscales y comerciales
+    - Condiciones de pago y descuentos
+    - Historial de compras y estadísticas
+    - Estados activo/inactivo
+    - Búsqueda avanzada y filtros
+  - **Albaranes de Entrada**
+    - Creación con selector de proveedor
+    - Múltiples líneas de productos
+    - Estados: Pendiente, Recibido, Facturado
+    - Confirmación de recepción con actualización de stock
+    - Generación de PDF con datos del proveedor
+    - Filtros por proveedor, estado y fechas
   - Registro de compras con recibos
   - Control de inventario automático
-  - **Módulo de Albaranes**: Gestión completa de albaranes de entrada
-    - Creación de albaranes con múltiples líneas de productos
-    - Estados: Pendiente, Recibido, Facturado
-    - Confirmación de recepción con actualización automática de stock
-    - Asociación de productos mediante UUID
-    - Base de datos por sitio (multi-tenant)
+  - Base de datos por sitio (multi-tenant)
 
 ### 🍽️ Modo Mesas (Restaurante)
 
@@ -153,6 +160,33 @@
   - Atributos width/height para prevenir layout shifts
 - **Iconos**: Bootstrap Icons
 - **Modo Oscuro**: (en desarrollo)
+
+### 📱 PWA y Modo Offline
+
+- **Progressive Web App**:
+  - Instalable en dispositivos móviles y escritorio
+  - Service Worker con estrategias de caché inteligentes
+  - Manifest configurado para cada sitio
+  - Splash screens personalizados
+
+- **Funcionamiento Offline**:
+  - Caché de assets estáticos (CSS, JS, imágenes)
+  - Caché dinámico de páginas visitadas
+  - Cola de operaciones con IndexedDB
+  - Sincronización automática al recuperar conexión
+  - Background Sync API para reintentos
+
+- **Indicador de Estado**:
+  - Verde: Online y sincronizado
+  - Amarillo: Offline con operaciones pendientes
+  - Rojo: Error de sincronización
+  - Notificaciones toast de cambios de estado
+
+- **Sincronización Inteligente**:
+  - Detección automática de conexión
+  - Sincronización manual forzada
+  - Gestión de cola de operaciones
+  - Persistencia de datos pendientes
 
 ## 🚀 Instalación
 
@@ -839,35 +873,156 @@ Para preguntas y soporte:
 
 **Desarrollado con ❤️ en España** 
 
-**Versión**: 2025 Noviembre con Sistema de Facturación e IVA
+**Versión**: 2025 Diciembre con Sistema de Proveedores y Modo Offline
 
 
 ## 📝 Novedades recientes
+
+### Gestión de Proveedores (Diciembre 2025)
+
+Sistema completo de gestión de proveedores integrado con albaranes de compra.
+
+#### Características principales:
+- **Ficha completa de proveedor**:
+  - Datos fiscales: Nombre, CIF, dirección completa
+  - Información de contacto: Email, teléfono, persona de contacto
+  - Condiciones comerciales: Días de pago, descuento general, condiciones de pago
+  - Datos bancarios: Cuenta bancaria para pagos
+  - Notas internas para seguimiento
+  - Estado: Activo/Inactivo
+
+- **Integración con albaranes**:
+  - Selector de proveedor en albaranes (reemplaza campos manuales)
+  - Campos eliminados: `proveedor`, `nif`, `contacto` (ahora se obtienen de la relación)
+  - Nuevos campos: `proveedor_id` (FK), `numero_albaran`, `fecha_albaran`
+  - Historial completo de compras por proveedor
+  - Estadísticas: Total albaranes, compras totales, compra media
+
+- **Funcionalidades**:
+  - CRUD completo con validación
+  - Búsqueda avanzada por nombre, CIF, email o teléfono
+  - Filtros por estado (activo/inactivo)
+  - Vista detallada con historial de albaranes
+  - Gráficos de evolución de compras (últimos 12 meses)
+  - Soft delete para mantener histórico
+  - UUID único por proveedor
+
+#### Arquitectura:
+- Base de datos por sitio: `protected $connection = 'site'`
+- Modelo: `App\Models\Proveedor`
+- Controlador: `App\Http\Controllers\ProveedoresController`
+- Rutas: `/proveedores` con resource completo
+- Validación: `'proveedor_id' => 'required|exists:site.proveedores,id'`
+
+#### Migración desde datos antiguos:
+Script SQL incluido en `database/scripts/migrar_proveedores_existentes.sql`:
+1. Crea proveedores únicos desde albaranes existentes
+2. Asigna `proveedor_id` a cada albarán
+3. Muestra estadísticas de migración
+
+### Modo Offline PWA (Diciembre 2025)
+
+Sistema avanzado de funcionamiento offline para garantizar operatividad sin conexión.
+
+#### Service Worker v3:
+- **Estrategias de caché**:
+  - Cache-First: Assets estáticos (CSS, JS, imágenes, fuentes)
+  - Network-First: Vistas HTML y datos dinámicos
+  - Network-Only: Peticiones API críticas
+
+- **Gestión inteligente de caché**:
+  - Cache estático (v1): Assets del frontend
+  - Cache dinámico (v1): Páginas visitadas
+  - Cache API (v1): Respuestas de endpoints
+  - Límite de 50 elementos por cache dinámico
+  - Limpieza automática de caches antiguas
+
+- **Sincronización en background**:
+  - Cola de operaciones pendientes en IndexedDB
+  - Background Sync API para reintento automático
+  - Sincronización manual forzada disponible
+  - Detección de conexión en tiempo real
+
+#### Offline Manager:
+- **Indicador visual de estado**:
+  - Verde: Online y sincronizado
+  - Amarillo: Offline (operaciones en cola)
+  - Rojo: Error de sincronización
+
+- **Notificaciones toast**:
+  - Cambio de estado online/offline
+  - Operaciones guardadas en cola
+  - Sincronización completada
+  - Errores de sincronización
+
+- **API pública**:
+  ```javascript
+  OfflineManager.forceSyncNow()  // Forzar sincronización
+  OfflineManager.getStatus()     // Obtener estado actual
+  ```
+
+#### Funcionalidades offline:
+- Navegación completa por la aplicación
+- Visualización de datos cacheados
+- Guardado de operaciones en cola
+- Sincronización automática al recuperar conexión
+- Persistencia de cambios pendientes
+
+#### Configuración:
+- Service Worker: `public/sw.js`
+- Manager: `public/js/offline-manager.js`
+- Registro en: `resources/views/layouts/app.blade.php`
+- Manifest PWA: `public/__manifest.json`
 
 ### Módulo de Albaranes (Diciembre 2025)
 
 - Sistema completo de gestión de albaranes de entrada/compras
 - **Características principales**:
   - Creación de albaranes con múltiples líneas de productos
+  - Integración con sistema de proveedores
   - Estados: Pendiente, Recibido, Facturado
   - Confirmación de recepción con actualización automática de stock
   - Asociación de productos mediante UUID (soporte multi-tenant)
   - Cálculo automático de subtotales e importes totales
   - Filtros por proveedor, estado y fechas
+  - Generación de PDF con datos del proveedor
   - Interfaz responsive con footer buttons (icon-only)
 - **Arquitectura**:
   - Base de datos por sitio (no en central)
+  - Foreign keys: `albaranes.proveedor_id` → `proveedores.id` (SET NULL)
   - Foreign keys: `albaran_lineas.producto_id` → `productos.uuid` (CASCADE)
   - Modelos con conexión explícita: `protected $connection = 'site'`
   - Validación UUID: `'producto_id' => 'required|string|size:36'`
 - **SQL para deployment**:
   ```sql
+  CREATE TABLE proveedores (
+    id bigint unsigned AUTO_INCREMENT PRIMARY KEY,
+    uuid char(36) NOT NULL UNIQUE,
+    nombre varchar(255) NOT NULL,
+    cif varchar(255) DEFAULT NULL,
+    email varchar(255) DEFAULT NULL,
+    telefono varchar(255) DEFAULT NULL,
+    direccion text DEFAULT NULL,
+    ciudad varchar(255) DEFAULT NULL,
+    codigo_postal varchar(255) DEFAULT NULL,
+    pais varchar(255) NOT NULL DEFAULT 'España',
+    contacto_principal varchar(255) DEFAULT NULL,
+    condiciones_pago text DEFAULT NULL,
+    dias_pago int NOT NULL DEFAULT 30,
+    cuenta_bancaria varchar(255) DEFAULT NULL,
+    notas text DEFAULT NULL,
+    activo tinyint(1) NOT NULL DEFAULT 1,
+    descuento_general decimal(5,2) NOT NULL DEFAULT 0.00,
+    created_at timestamp NULL,
+    updated_at timestamp NULL,
+    deleted_at timestamp NULL
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
   CREATE TABLE albaranes (
     id bigint unsigned AUTO_INCREMENT PRIMARY KEY,
-    numero_albaran varchar(255) NOT NULL UNIQUE,
-    proveedor varchar(255) NOT NULL,
-    nif varchar(20) DEFAULT NULL,
-    contacto varchar(255) DEFAULT NULL,
+    proveedor_id bigint unsigned DEFAULT NULL,
+    numero_albaran varchar(255) DEFAULT NULL,
+    fecha_albaran date DEFAULT NULL,
     fecha date NOT NULL,
     estado enum('pendiente','recibido','facturado') NOT NULL DEFAULT 'pendiente',
     total decimal(10,2) NOT NULL DEFAULT 0.00,
@@ -876,7 +1031,10 @@ Para preguntas y soporte:
     fecha_recepcion datetime DEFAULT NULL,
     created_at timestamp NULL DEFAULT NULL,
     updated_at timestamp NULL DEFAULT NULL,
-    KEY idx_usuario_id (usuario_id)
+    KEY idx_proveedor_id (proveedor_id),
+    KEY idx_usuario_id (usuario_id),
+    CONSTRAINT fk_albaranes_proveedor
+      FOREIGN KEY (proveedor_id) REFERENCES proveedores(id) ON DELETE SET NULL
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
   CREATE TABLE albaran_lineas (
