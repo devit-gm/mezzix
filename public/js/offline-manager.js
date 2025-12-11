@@ -9,6 +9,7 @@ class OfflineManager {
         this.pendingCount = 0;
         this.syncInProgress = false;
         this.statusIndicator = null;
+        this.wasOffline = false; // Nuevo: rastrear si estuvimos offline
 
         this.init();
     }
@@ -64,27 +65,33 @@ class OfflineManager {
         if (!this.statusIndicator) return;
 
         if (!this.isOnline) {
+            // Offline: mostrar siempre
             this.statusIndicator.style.backgroundColor = '#dc3545';
             this.statusIndicator.style.color = 'white';
             this.statusIndicator.innerHTML = '📡 Sin conexión - Modo Offline';
             this.statusIndicator.style.display = 'block';
         } else if (this.pendingCount > 0) {
+            // Sincronizando: mostrar siempre
             this.statusIndicator.style.backgroundColor = '#ffc107';
             this.statusIndicator.style.color = '#000';
             this.statusIndicator.innerHTML = `⏳ Sincronizando... (${this.pendingCount} pendientes)`;
             this.statusIndicator.style.display = 'block';
-        } else {
+        } else if (this.wasOffline) {
+            // Solo mostrar "Conectado" si acabamos de recuperar conexión
             this.statusIndicator.style.backgroundColor = '#28a745';
             this.statusIndicator.style.color = 'white';
             this.statusIndicator.innerHTML = '✅ Conectado';
             this.statusIndicator.style.display = 'block';
 
-            // Ocultar después de 3 segundos si todo está OK
+            // Ocultar después de 3 segundos
             setTimeout(() => {
                 if (this.isOnline && this.pendingCount === 0) {
                     this.statusIndicator.style.display = 'none';
                 }
             }, 3000);
+        } else {
+            // Conexión normal: no mostrar nada
+            this.statusIndicator.style.display = 'none';
         }
     }
 
@@ -93,8 +100,11 @@ class OfflineManager {
         this.isOnline = true;
         this.updateStatus();
 
-        // Mostrar notificación
-        this.showNotification('Conexión restaurada', 'Se sincronizarán los datos pendientes', 'success');
+        // Solo mostrar notificación si realmente estuvimos offline
+        if (this.wasOffline) {
+            this.showNotification('Conexión restaurada', 'Se sincronizarán los datos pendientes', 'success');
+            this.wasOffline = false;
+        }
 
         // Intentar sincronizar
         this.syncNow();
@@ -103,6 +113,7 @@ class OfflineManager {
     handleOffline() {
         console.log('[OfflineManager] Conexión perdida');
         this.isOnline = false;
+        this.wasOffline = true; // Marcar que estamos offline
         this.updateStatus();
 
         // Mostrar notificación

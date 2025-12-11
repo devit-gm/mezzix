@@ -1,7 +1,7 @@
-const CACHE_NAME = 'mezzix-v3';
-const CACHE_STATIC = 'mezzix-static-v3';
-const CACHE_DYNAMIC = 'mezzix-dynamic-v3';
-const CACHE_API = 'mezzix-api-v3';
+const CACHE_NAME = 'mezzix-v5';
+const CACHE_STATIC = 'mezzix-static-v5';
+const CACHE_DYNAMIC = 'mezzix-dynamic-v5';
+const CACHE_API = 'mezzix-api-v5';
 
 const STATIC_ASSETS = [
     '/css/app.css',
