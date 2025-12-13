@@ -28,6 +28,25 @@ class Producto extends Model
         'stock_reservado'
     ];
 
+    /**
+     * Atributos calculados que se añaden al JSON
+     */
+    protected $appends = ['stock_disponible'];
+
+    /*
+     |--------------------------------------------------------------------------
+     | ATRIBUTOS CALCULADOS
+     |--------------------------------------------------------------------------
+     */
+
+    /**
+     * Atributo calculado: stock disponible (stock real - stock reservado)
+     */
+    public function getStockDisponibleAttribute()
+    {
+        return max(0, ($this->stock ?? 0) - ($this->stock_reservado ?? 0));
+    }
+
     /*
      |--------------------------------------------------------------------------
      | MÉTODOS DE CÁLCULO
@@ -36,10 +55,11 @@ class Producto extends Model
 
     /**
      * Obtener stock disponible (stock real - stock reservado)
+     * @deprecated Usar $producto->stock_disponible en su lugar
      */
     public function stockDisponible()
     {
-        return ($this->stock ?? 0) - ($this->stock_reservado ?? 0);
+        return $this->stock_disponible;
     }
 
     /**
@@ -84,6 +104,7 @@ class Producto extends Model
 
     /**
      * Confirmar venta (descontar de stock real y liberar reserva)
+     * Optimizado: 1 query en lugar de 2
      */
     public function confirmarVenta($cantidad)
     {
@@ -91,11 +112,14 @@ class Producto extends Model
             return true; // No gestiona stock
         }
 
-        // Descontar del stock real
-        $this->decrement('stock', $cantidad);
+        // Batch update: descuenta stock real y libera reserva en una sola query
+        $this->update([
+            'stock' => \DB::raw('stock - ' . (int)$cantidad),
+            'stock_reservado' => \DB::raw('GREATEST(0, stock_reservado - ' . (int)$cantidad . ')')
+        ]);
         
-        // Liberar la reserva
-        $this->liberarStock($cantidad);
+        // Refrescar el modelo para reflejar los cambios
+        $this->refresh();
         
         return true;
     }
@@ -144,7 +168,8 @@ class Producto extends Model
     // 🔹 Todas las líneas de composición donde este producto es el principal
     public function composicion()
     {
-        return $this->hasMany(ComposicionProducto::class, 'id_producto', 'uuid');
+        return $this->hasMany(ComposicionProducto::class, 'id_producto', 'uuid')
+            ->with('componenteProducto:uuid,nombre,precio,stock,stock_reservado,combinado,iva'); // Eager load para evitar N+1
     }
 
     // 🔹 Productos componentes (productos hijos del combinado)

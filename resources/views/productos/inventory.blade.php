@@ -38,12 +38,19 @@
                                                     <tr class="">
                                                         <th scope="col-auto" class="text-center">{{ __('Imagen') }}</th>
                                                         <th scope="col-auto">{{ __('Nombre') }}</th>
-                                                        <th scope="col-auto">{{ __('Stock') }}</th>
+                                                        <th scope="col-auto" class="text-center">
+                                                            {{ __('Stock') }}
+                                                        </th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     @foreach ($productos as $producto)
-                                                    <tr style="height: 80px;" class="{{ $producto->stock <= ($ajustes->stock_minimo ?? 5) ? 'table-danger' : '' }}">
+                                                    @php
+                                                        $stockDisponible = max(0, $producto->stock - ($producto->stock_reservado ?? 0));
+                                                        $esStockBajo = $stockDisponible <= ($ajustes->stock_minimo ?? 5) && $stockDisponible > 0;
+                                                        $esAgotado = $stockDisponible <= 0;
+                                                    @endphp
+                                                    <tr style="height: 80px;" class="{{ $esAgotado ? 'table-danger' : ($esStockBajo ? 'table-warning' : '') }}">
                                                         <td class="align-middle">
                                                             <img width="60" height="60" class="img-fluid rounded img-responsive" 
                                                                  src="{{ cachedImage($producto->imagen) }}" 
@@ -55,14 +62,22 @@
 
                                                         <td class="align-middle">
                                                             {{ $producto->nombre }}
-                                                            @if($producto->stock <= ($ajustes->stock_minimo ?? 5))
-                                                                <span class="badge bg-danger ms-2 fondo-rojo">{{ __('Stock bajo') }}</span>
+                                                            @if($esAgotado)
+                                                                <span class="badge bg-danger ms-2">{{ __('Agotado') }}</span>
+                                                            @elseif($esStockBajo)
+                                                                <span class="badge bg-warning text-dark ms-2">{{ __('Stock bajo') }}</span>
+                                                            @endif
+                                                            @if($producto->stock_reservado > 0)
+                                                                <br><small class="text-muted">({{ number_format($producto->stock_reservado, 2) }} reservado)</small>
                                                             @endif
                                                         </td>
-                                                        <td width="80" class="align-middle col-md-4">
+                                                        <td width="100" class="align-middle text-center">
                                                             <div class="form-group">
-                                                                <input class="form-control" type="number" min="0" max="15" name="stock[{{ $producto->uuid }}]" id="stock[{{ $producto->uuid }}]" value="{{ $producto->stock }}">
+                                                                <input class="form-control text-center" type="number" min="0" step="0.01" name="stock[{{ $producto->uuid }}]" id="stock[{{ $producto->uuid }}]" value="{{ $producto->stock }}">
                                                             </div>
+                                                            <small class="text-muted d-block mt-1">
+                                                                Disponible: <strong class="{{ $esAgotado ? 'text-dark' : ($esStockBajo ? 'text-dark' : 'text-dark') }}">{{ number_format($stockDisponible, 2) }}</strong>
+                                                            </small>
                                                         </td>
                                                     </tr>
                                                     @endforeach
@@ -147,6 +162,16 @@
 @push('scripts')
 <!-- Cargar Quagga desde CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
+
+<script>
+    // Inicializar tooltips de Bootstrap
+    document.addEventListener('DOMContentLoaded', function() {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    });
+</script>
 
 <script>
 // Objeto BarcodeScanner

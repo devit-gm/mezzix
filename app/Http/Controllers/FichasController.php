@@ -23,6 +23,8 @@ use Ramsey\Uuid\Uuid;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
+use App\Jobs\NotificarStockBajo;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class FichasController extends Controller
@@ -464,66 +466,74 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         $ajustes = DB::connection('site')->table('ajustes')->first();
         $stockMinimo = $ajustes->stock_minimo ?? 5;
         
-        if ($ajustes->permitir_comprar_sin_stock == 1) {
-            $productos = Producto::where('familia', $uuid2)
+        // OPTIMIZADO: Cache solo de la lista de productos (estructura, no stock)
+        // El stock se verifica SIEMPRE en tiempo real
+        $cacheKey = "productos_familia_{$uuid2}";
+        
+        $productos = Cache::remember($cacheKey, 300, function() use ($uuid2) {
+            return Producto::where('familia', $uuid2)
                 ->where(function($query) {
                     $query->where('precio', '>', 0)
-                          ->orWhere('combinado', 1); // Incluir productos combinados aunque tengan precio 0
+                          ->orWhere('combinado', 1);
                 })
                 ->orderBy('posicion')
                 ->get();
+        });
+        
+        if ($ajustes->permitir_comprar_sin_stock == 1) {
             $productosAgotados = collect();
             $productosStockBajo = collect();
         } else {
-            $productos = Producto::where('familia', $uuid2)
-                ->where(function($query) {
-                    $query->where('precio', '>', 0)
-                          ->orWhere('combinado', 1); // Incluir productos combinados aunque tengan precio 0
-                })
-                ->orderBy('posicion')
-                ->get();
+            // Obtener UUIDs de los productos de esta familia para optimizar queries
+            $productosUuids = $productos->pluck('uuid');
             
-            // Productos sin stock disponible (stock - stock_reservado <= 0)
-            $productosAgotados = Producto::where('familia', $uuid2)
-                ->where(function ($query) {
-                    $query->where(function ($query) {
-                        // Productos simples sin stock disponible
-                        $query->where('combinado', 0)
-                            ->whereRaw('(stock - COALESCE(stock_reservado, 0)) <= 0');
-                    })->orWhere(function ($query) {
-                        // Productos combinados con algún componente sin stock disponible
-                        $query->where('combinado', 1)
-                            ->whereIn('uuid', function ($subquery) {
-                                $subquery->select('id_producto')
-                                    ->from('composicion_productos')
-                                    ->groupBy('id_producto')
-                                    ->havingRaw('SUM(CASE WHEN id_componente IN (SELECT uuid FROM productos WHERE (stock - COALESCE(stock_reservado, 0)) <= 0) THEN 1 ELSE 0 END) > 0');
-                            });
-                    });
-                })->orderBy('posicion')->get();
+            // OPTIMIZADO: Productos simples agotados (stock disponible <= 0)
+            $agotadosSimples = DB::connection('site')
+                ->table('productos')
+                ->whereIn('uuid', $productosUuids)
+                ->where('combinado', 0)
+                ->whereRaw('(stock - COALESCE(stock_reservado, 0)) <= 0')
+                ->pluck('uuid');
             
-            // Productos con stock disponible bajo
-            $productosStockBajo = Producto::where('familia', $uuid2)
-                ->where(function ($query) use ($stockMinimo) {
-                    $query->where(function ($query) use ($stockMinimo) {
-                        // Productos simples con stock disponible bajo
-                        $query->where('combinado', 0)
-                            ->whereRaw('(stock - COALESCE(stock_reservado, 0)) > 0')
-                            ->whereRaw('(stock - COALESCE(stock_reservado, 0)) <= ?', [$stockMinimo]);
-                    })->orWhere(function ($query) use ($stockMinimo) {
-                        // Productos combinados con algún componente con stock disponible bajo
-                        $query->where('combinado', 1)
-                            ->whereIn('uuid', function ($subquery) use ($stockMinimo) {
-                                $subquery->select('id_producto')
-                                    ->from('composicion_productos')
-                                    ->groupBy('id_producto')
-                                    ->havingRaw('SUM(CASE WHEN id_componente IN (SELECT uuid FROM productos WHERE (stock - COALESCE(stock_reservado, 0)) > 0 AND (stock - COALESCE(stock_reservado, 0)) <= ?) THEN 1 ELSE 0 END) > 0', [$stockMinimo]);
-                            });
-                    });
-                })
-                ->whereNotIn('uuid', $productosAgotados->pluck('uuid'))
-                ->orderBy('posicion')
-                ->get();
+            // OPTIMIZADO: Productos combinados con algún componente agotado
+            $agotadosCombinados = DB::connection('site')
+                ->table('productos as p')
+                ->join('composicion_productos as cp', 'p.uuid', '=', 'cp.id_producto')
+                ->join('productos as componente', 'cp.id_componente', '=', 'componente.uuid')
+                ->whereIn('p.uuid', $productosUuids)
+                ->where('p.combinado', 1)
+                ->whereRaw('(componente.stock - COALESCE(componente.stock_reservado, 0)) <= 0')
+                ->distinct()
+                ->pluck('p.uuid');
+            
+            $idsAgotados = $agotadosSimples->merge($agotadosCombinados)->unique();
+            $productosAgotados = $productos->whereIn('uuid', $idsAgotados);
+            
+            // OPTIMIZADO: Productos simples con stock bajo (0 < stock disponible <= stock_minimo)
+            $stockBajoSimples = DB::connection('site')
+                ->table('productos')
+                ->whereIn('uuid', $productosUuids)
+                ->where('combinado', 0)
+                ->whereRaw('(stock - COALESCE(stock_reservado, 0)) > 0')
+                ->whereRaw('(stock - COALESCE(stock_reservado, 0)) <= ?', [$stockMinimo])
+                ->whereNotIn('uuid', $idsAgotados)
+                ->pluck('uuid');
+            
+            // OPTIMIZADO: Productos combinados con algún componente con stock bajo
+            $stockBajoCombinados = DB::connection('site')
+                ->table('productos as p')
+                ->join('composicion_productos as cp', 'p.uuid', '=', 'cp.id_producto')
+                ->join('productos as componente', 'cp.id_componente', '=', 'componente.uuid')
+                ->whereIn('p.uuid', $productosUuids)
+                ->where('p.combinado', 1)
+                ->whereRaw('(componente.stock - COALESCE(componente.stock_reservado, 0)) > 0')
+                ->whereRaw('(componente.stock - COALESCE(componente.stock_reservado, 0)) <= ?', [$stockMinimo])
+                ->whereNotIn('p.uuid', $idsAgotados)
+                ->distinct()
+                ->pluck('p.uuid');
+            
+            $idsStockBajo = $stockBajoSimples->merge($stockBajoCombinados)->unique();
+            $productosStockBajo = $productos->whereIn('uuid', $idsStockBajo);
         }
         
         return view('fichas.productos', compact('ficha', 'familia', 'productos', 'productosAgotados', 'productosStockBajo', 'ajustes'));
@@ -725,9 +735,15 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
             }
 
             //Descontamos el stock de cada artículo consumido y liberamos las reservas
-            $productos = FichaProducto::with(['producto.composicion.componenteProducto'])
-                ->where('id_ficha', $uuid)
-                ->get();
+            // OPTIMIZADO: Eager loading completo para evitar N+1 queries
+            $productos = FichaProducto::with([
+                'producto' => function($query) {
+                    $query->select('uuid', 'nombre', 'precio', 'stock', 'stock_reservado', 'combinado', 'iva');
+                },
+                'producto.composicion.componenteProducto' => function($query) {
+                    $query->select('uuid', 'nombre', 'stock', 'stock_reservado');
+                }
+            ])->where('id_ficha', $uuid)->get();
             
             Log::info('=== INICIO CONFIRMACIÓN VENTA (Stock real - Liberar reservas) ===', [
                 'ficha_uuid' => $uuid,
@@ -758,8 +774,8 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
                                 'cantidad_vendida' => $producto->cantidad
                             ]);
                             
-                            // Verificar stock bajo
-                            $stockService->verificarYNotificar($producto2->uuid);
+                            // OPTIMIZADO: Verificar stock bajo de forma asíncrona
+                            NotificarStockBajo::dispatch($producto2->uuid)->afterCommit();
                         }
                     }
                 } else {
@@ -777,8 +793,8 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
                         'cantidad_vendida' => $producto->cantidad
                     ]);
                     
-                    // Verificar stock bajo
-                    $stockService->verificarYNotificar($productoFicha->uuid);
+                    // OPTIMIZADO: Verificar stock bajo de forma asíncrona
+                    NotificarStockBajo::dispatch($productoFicha->uuid)->afterCommit();
                 }
             }
             
@@ -987,57 +1003,53 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
 
     public function addproduct(Request $request)
     {
-        $ficha = Ficha::find($request->idFicha);
-        $familia = Familia::find($request->idFamilia);
-        $producto = Producto::find($request->idProducto);
-        $cantidad = $request->cantidad;
+        return DB::transaction(function () use ($request) {
+            $ficha = Ficha::find($request->idFicha);
+            $familia = Familia::find($request->idFamilia);
+            $producto = Producto::with('composicion.componenteProducto')->find($request->idProducto);
+            $cantidad = $request->cantidad;
 
-        // Verificar stock disponible (solo si la ficha está abierta)
-        if ($ficha->estado == 0) {
-            if ($producto->combinado == 1) {
-                // Verificar stock de componentes
-                $productosCombinados = DB::connection('site')->table('composicion_productos')
-                    ->where('id_producto', $producto->uuid)
-                    ->get();
-                    
-                foreach ($productosCombinados as $productoCombinado) {
-                    $componente = Producto::find($productoCombinado->id_componente);
-                    if ($componente && !$componente->tieneStockDisponible($cantidad)) {
+            // Verificar stock disponible (solo si la ficha está abierta)
+            if ($ficha->estado == 0) {
+                if ($producto->combinado == 1) {
+                    // Verificar stock de componentes (ya cargados con eager loading)
+                    foreach ($producto->composicion as $composicion) {
+                        $componente = $composicion->componenteProducto;
+                        if ($componente && !$componente->tieneStockDisponible($cantidad)) {
+                            return redirect()->back()
+                                ->with('error', "Stock insuficiente de {$componente->nombre}. Disponible: {$componente->stock_disponible}");
+                        }
+                    }
+                } else {
+                    // Verificar stock del producto simple
+                    if (!$producto->tieneStockDisponible($cantidad)) {
                         return redirect()->back()
-                            ->with('error', "Stock insuficiente de {$componente->nombre}. Disponible: {$componente->stockDisponible()}");
+                            ->with('error', "Stock insuficiente de {$producto->nombre}. Disponible: {$producto->stock_disponible}");
                     }
                 }
+            }
+
+            //Si el producto es combinado hay que sumar el precio de sus componentes
+            if ($producto->combinado == 1) {
+                $precio = 0;
+                foreach ($producto->composicion as $composicion) {
+                    $componente = $composicion->componenteProducto;
+                    $precio += $componente->precio;
+                    
+                    // Reservar stock del componente (solo si ficha abierta)
+                    if ($ficha->estado == 0) {
+                        $componente->reservarStock($cantidad);
+                    }
+                }
+                $producto->precio = $precio;
             } else {
-                // Verificar stock del producto simple
-                if (!$producto->tieneStockDisponible($cantidad)) {
-                    return redirect()->back()
-                        ->with('error', "Stock insuficiente de {$producto->nombre}. Disponible: {$producto->stockDisponible()}");
-                }
-            }
-        }
-
-        //Si el producto es combinado hay que sumar el precio de sus componentes
-        if ($producto->combinado == 1) {
-            $productosCombinados = DB::connection('site')->table('composicion_productos')->where('id_producto', $producto->uuid)->get();
-            $precio = 0;
-            foreach ($productosCombinados as $productoCombinado) {
-                $producto2 = Producto::find($productoCombinado->id_componente);
-                $precio += $producto2->precio;
-                
-                // Reservar stock del componente (solo si ficha abierta)
+                // Reservar stock del producto simple (solo si ficha abierta)
                 if ($ficha->estado == 0) {
-                    $producto2->reservarStock($cantidad);
+                    $producto->reservarStock($cantidad);
                 }
             }
-            $producto->precio = $precio;
-        } else {
-            // Reservar stock del producto simple (solo si ficha abierta)
-            if ($ficha->estado == 0) {
-                $producto->reservarStock($cantidad);
-            }
-        }
 
-        $existe = FichaProducto::where('id_ficha', $ficha->uuid)->where('id_producto', $producto->id)->first();
+            $existe = FichaProducto::where('id_ficha', $ficha->uuid)->where('id_producto', $producto->id)->first();
         if ($existe) {
             $existe->cantidad += $cantidad;
             $existe->precio += ($producto->precio * $cantidad);
@@ -1051,193 +1063,187 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
                 'cantidad' => $cantidad
             ]);
         }
-        $productos = Producto::where('familia', $familia)->orderBy('posicion')->get();
         return redirect()->route('fichas.productos', [
             'uuid' => $ficha,
             'uuid2' => $familia
         ])->with('success', $cantidad . 'x ' . $producto->nombre . ' ' . __('añadido a la ficha'));
+        });
     }
 
     public function lista($uuid)
     {
         $ficha = Ficha::find($uuid);
         $ficha->precio = $this->ObtenerImporteFicha($ficha);
-        $ajustes = DB::connection('site')->table('ajustes')->first();
+        $ajustes = app('ajustes'); // Usar cache en lugar de query
+        
         if($ajustes->modo_operacion == 'mesas'){
-            $productosFicha = FichaProducto::where('id_ficha', $uuid)
-           ->get();
+            $productosFicha = FichaProducto::with('producto:uuid,nombre,precio,imagen,combinado,iva')
+                ->where('id_ficha', $uuid)
+                ->get();
         }else{
-            $productosFicha = FichaProducto::where('id_ficha', $uuid)
-            ->groupBy('id_producto')
-            ->selectRaw('id_producto, sum(cantidad) as cantidad, sum(precio) as precio') // Calculate the total quantity and total price
-            ->get();
+            $productosFicha = FichaProducto::with('producto:uuid,nombre,precio,imagen,combinado,iva')
+                ->where('id_ficha', $uuid)
+                ->groupBy('id_producto')
+                ->selectRaw('id_producto, sum(cantidad) as cantidad, sum(precio) as precio')
+                ->get();
         }
+        
         foreach ($productosFicha as $productoFicha) {
             $productoFicha->borrable = true;
-            $productoFicha->producto = Producto::find($productoFicha->id_producto);
         }
 
-        $ajustes = DB::connection('site')->table('ajustes')->first();
         return view('fichas.lista', compact('ficha', 'productosFicha', 'ajustes'));
     }
 
     public function destroylista(string $uuid, string $uuid2)
     {
-        $ficha = Ficha::find($uuid);
-        
-        // Verificar si uuid2 es un UUID de ficha_producto (modo mesas) o un id_producto (modo fichas)
-        $fichaProducto = FichaProducto::where('uuid', $uuid2)->first();
-        
-        if ($fichaProducto && $fichaProducto->id_ficha === $uuid) {
-            // Es un UUID de ficha_producto (modo mesas) - borrar solo ese registro
-            // Liberar stock reservado (solo si ficha abierta)
-            if ($ficha->estado == 0) {
-                $producto = Producto::find($fichaProducto->id_producto);
-                if ($producto) {
-                    if ($producto->combinado == 1) {
-                        // Liberar stock de componentes
-                        $componentes = DB::connection('site')->table('composicion_productos')
-                            ->where('id_producto', $producto->uuid)
-                            ->get();
-                        foreach ($componentes as $comp) {
-                            $componente = Producto::find($comp->id_componente);
-                            if ($componente) {
-                                $componente->liberarStock($fichaProducto->cantidad);
+        return DB::transaction(function () use ($uuid, $uuid2) {
+            $ficha = Ficha::find($uuid);
+            
+            // Verificar si uuid2 es un UUID de ficha_producto (modo mesas) o un id_producto (modo fichas)
+            $fichaProducto = FichaProducto::where('uuid', $uuid2)->first();
+            
+            if ($fichaProducto && $fichaProducto->id_ficha === $uuid) {
+                // Es un UUID de ficha_producto (modo mesas) - borrar solo ese registro
+                // Liberar stock reservado (solo si ficha abierta)
+                if ($ficha->estado == 0) {
+                    $producto = Producto::with('composicion.componenteProducto')->find($fichaProducto->id_producto);
+                    if ($producto) {
+                        if ($producto->combinado == 1) {
+                            // Liberar stock de componentes
+                            foreach ($producto->composicion as $composicion) {
+                                $componente = $composicion->componenteProducto;
+                                if ($componente) {
+                                    $componente->liberarStock($fichaProducto->cantidad);
+                                }
                             }
+                        } else {
+                            $producto->liberarStock($fichaProducto->cantidad);
                         }
-                    } else {
-                        $producto->liberarStock($fichaProducto->cantidad);
                     }
                 }
-            }
-            $fichaProducto->delete();
-        } else {
-            // Es un id_producto (modo fichas) - borrar todos los registros con ese producto
-            $fichaProductos = FichaProducto::where('id_ficha', $uuid)->where('id_producto', $uuid2)->get();
-            $totalCantidad = $fichaProductos->sum('cantidad');
-            
-            // Liberar stock reservado (solo si ficha abierta)
-            if ($ficha->estado == 0 && $totalCantidad > 0) {
-                $producto = Producto::find($uuid2);
-                if ($producto) {
-                    if ($producto->combinado == 1) {
-                        // Liberar stock de componentes
-                        $componentes = DB::connection('site')->table('composicion_productos')
-                            ->where('id_producto', $producto->uuid)
-                            ->get();
-                        foreach ($componentes as $comp) {
-                            $componente = Producto::find($comp->id_componente);
-                            if ($componente) {
-                                $componente->liberarStock($totalCantidad);
-                            }
-                        }
-                    } else {
-                        $producto->liberarStock($totalCantidad);
-                    }
-                }
-            }
-            
-            foreach ($fichaProductos as $fichaProducto) {
                 $fichaProducto->delete();
+            } else {
+                // Es un id_producto (modo fichas) - borrar todos los registros con ese producto
+                $fichaProductos = FichaProducto::where('id_ficha', $uuid)->where('id_producto', $uuid2)->get();
+                $totalCantidad = $fichaProductos->sum('cantidad');
+                
+                // Liberar stock reservado (solo si ficha abierta)
+                if ($ficha->estado == 0 && $totalCantidad > 0) {
+                    $producto = Producto::with('composicion.componenteProducto')->find($uuid2);
+                    if ($producto) {
+                        if ($producto->combinado == 1) {
+                            // Liberar stock de componentes
+                            foreach ($producto->composicion as $composicion) {
+                                $componente = $composicion->componenteProducto;
+                                if ($componente) {
+                                    $componente->liberarStock($totalCantidad);
+                                }
+                            }
+                        } else {
+                            $producto->liberarStock($totalCantidad);
+                        }
+                    }
+                }
+                
+                foreach ($fichaProductos as $fichaProducto) {
+                    $fichaProducto->delete();
+                }
             }
-        }
-        
-        return redirect()->route('fichas.lista', $uuid)
-            ->with('success', __('Producto eliminado de la ficha'));
+            
+            return redirect()->route('fichas.lista', $uuid)
+                ->with('success', __('Producto eliminado de la ficha'));
+        });
     }
 
     public function updatelista(string $uuid, string $uuid2, int $cantidad)
     {
-        $ficha = Ficha::find($uuid);
-        $producto = Producto::find($uuid2);
-        
-        // Si estamos añadiendo cantidad y la ficha está abierta, verificar stock
-        if ($cantidad > 0 && $ficha->estado == 0) {
-            if ($producto->combinado == 1) {
-                $componentes = DB::connection('site')->table('composicion_productos')
-                    ->where('id_producto', $producto->uuid)
-                    ->get();
-                foreach ($componentes as $comp) {
-                    $componente = Producto::find($comp->id_componente);
-                    if ($componente && !$componente->tieneStockDisponible($cantidad)) {
+        return DB::transaction(function () use ($uuid, $uuid2, $cantidad) {
+            $ficha = Ficha::find($uuid);
+            $producto = Producto::with('composicion.componenteProducto')->find($uuid2);
+            
+            // Si estamos añadiendo cantidad y la ficha está abierta, verificar stock
+            if ($cantidad > 0 && $ficha->estado == 0) {
+                if ($producto->combinado == 1) {
+                    foreach ($producto->composicion as $composicion) {
+                        $componente = $composicion->componenteProducto;
+                        if ($componente && !$componente->tieneStockDisponible($cantidad)) {
+                            return redirect()->route('fichas.lista', $uuid)
+                                ->with('error', "Stock insuficiente de {$componente->nombre}. Disponible: {$componente->stock_disponible}");
+                        }
+                    }
+                } else {
+                    if (!$producto->tieneStockDisponible($cantidad)) {
                         return redirect()->route('fichas.lista', $uuid)
-                            ->with('error', "Stock insuficiente de {$componente->nombre}. Disponible: {$componente->stockDisponible()}");
+                            ->with('error', "Stock insuficiente de {$producto->nombre}. Disponible: {$producto->stock_disponible}");
                     }
-                }
-            } else {
-                if (!$producto->tieneStockDisponible($cantidad)) {
-                    return redirect()->route('fichas.lista', $uuid)
-                        ->with('error', "Stock insuficiente de {$producto->nombre}. Disponible: {$producto->stockDisponible()}");
-                }
-            }
-        }
-        
-        //Buscar el total del producto de la ficha en FichaProducto
-        //Si la cantidad es positiva insertar un elemento en FichaProducto
-        //Si la cantidad es negativa eliminar un elemento en FichaProducto
-        $total = FichaProducto::where('id_ficha', $uuid)->where('id_producto', $uuid2)->sum('cantidad');
-        
-        if ($producto->combinado == 1) {
-            $productosCombinados = DB::connection('site')->table('composicion_productos')->where('id_producto', $producto->uuid)->get();
-            $precio = 0;
-            foreach ($productosCombinados as $productoCombinado) {
-                $producto2 = Producto::find($productoCombinado->id_componente);
-                $precio += $producto2->precio;
-            }
-            $producto->precio = $precio;
-        }
-        
-        if ($cantidad > 0) {
-            // Reservar stock (solo si ficha abierta)
-            if ($ficha->estado == 0) {
-                if ($producto->combinado == 1) {
-                    foreach ($productosCombinados as $productoCombinado) {
-                        $componente = Producto::find($productoCombinado->id_componente);
-                        if ($componente) {
-                            $componente->reservarStock($cantidad);
-                        }
-                    }
-                } else {
-                    $producto->reservarStock($cantidad);
-                }
-            }
-            for ($cantidad; $cantidad > 0; $cantidad--) {
-                $fichaProducto = FichaProducto::create([
-                    'uuid' => (string) Uuid::uuid4(),
-                    'id_ficha' => $uuid,
-                    'id_producto' => $uuid2,
-                    'precio' => $producto->precio,
-                    'cantidad' => 1
-                ]);
-            }
-            return redirect()->route('fichas.lista', $uuid)
-                ->with('success', __('Producto añadido a la ficha'));
-        } else {
-            // Liberar stock reservado (solo si ficha abierta)
-            if ($ficha->estado == 0) {
-                $cantidadLiberar = abs($cantidad);
-                if ($producto->combinado == 1) {
-                    $componentes = DB::connection('site')->table('composicion_productos')
-                        ->where('id_producto', $producto->uuid)
-                        ->get();
-                    foreach ($componentes as $comp) {
-                        $componente = Producto::find($comp->id_componente);
-                        if ($componente) {
-                            $componente->liberarStock($cantidadLiberar);
-                        }
-                    }
-                } else {
-                    $producto->liberarStock($cantidadLiberar);
                 }
             }
             
-            $fichaProductos = FichaProducto::where('id_ficha', $uuid)->where('id_producto', $uuid2)->take(abs($cantidad))->get();
-            foreach ($fichaProductos as $fichaProducto) {
-                $fichaProducto->delete();
+            //Buscar el total del producto de la ficha en FichaProducto
+            //Si la cantidad es positiva insertar un elemento en FichaProducto
+            //Si la cantidad es negativa eliminar un elemento en FichaProducto
+            $total = FichaProducto::where('id_ficha', $uuid)->where('id_producto', $uuid2)->sum('cantidad');
+            
+            if ($producto->combinado == 1) {
+                $precio = 0;
+                foreach ($producto->composicion as $composicion) {
+                    $componente = $composicion->componenteProducto;
+                    $precio += $componente->precio;
+                }
+                $producto->precio = $precio;
             }
-            return redirect()->route('fichas.lista', $uuid)
-                ->with('success', __('Producto eliminado de la ficha'));
-        }
+            
+            if ($cantidad > 0) {
+                // Reservar stock (solo si ficha abierta)
+                if ($ficha->estado == 0) {
+                    if ($producto->combinado == 1) {
+                        foreach ($producto->composicion as $composicion) {
+                            $componente = $composicion->componenteProducto;
+                            if ($componente) {
+                                $componente->reservarStock($cantidad);
+                            }
+                        }
+                    } else {
+                        $producto->reservarStock($cantidad);
+                    }
+                }
+                
+                for ($cantidad; $cantidad > 0; $cantidad--) {
+                    $fichaProducto = FichaProducto::create([
+                        'uuid' => (string) Uuid::uuid4(),
+                        'id_ficha' => $uuid,
+                        'id_producto' => $uuid2,
+                        'precio' => $producto->precio,
+                        'cantidad' => 1
+                    ]);
+                }
+                return redirect()->route('fichas.lista', $uuid)
+                    ->with('success', __('Producto añadido a la ficha'));
+            } else {
+                // Liberar stock reservado (solo si ficha abierta)
+                if ($ficha->estado == 0) {
+                    $cantidadLiberar = abs($cantidad);
+                    if ($producto->combinado == 1) {
+                        foreach ($producto->composicion as $composicion) {
+                            $componente = $composicion->componenteProducto;
+                            if ($componente) {
+                                $componente->liberarStock($cantidadLiberar);
+                            }
+                        }
+                    } else {
+                        $producto->liberarStock($cantidadLiberar);
+                    }
+                }
+                
+                $fichaProductos = FichaProducto::where('id_ficha', $uuid)->where('id_producto', $uuid2)->take(abs($cantidad))->get();
+                foreach ($fichaProductos as $fichaProducto) {
+                    $fichaProducto->delete();
+                }
+                return redirect()->route('fichas.lista', $uuid)
+                    ->with('success', __('Producto eliminado de la ficha'));
+            }
+        });
     }
 
     // ========== MÉTODOS PARA SISTEMA DE MESAS ==========
@@ -1548,39 +1554,42 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
             'fecha' => now()
         ]);
         
-                // Confirmar ventas: descontar stock real y liberar reservas con locking
+                // OPTIMIZADO: Confirmar ventas con eager loading de composición
+                $stockService = new \App\Services\StockNotificationService();
+                
                 foreach ($mesa->productos as $fichaProducto) {
                     // Lock del producto para evitar race conditions en stock
-                    $producto = Producto::where('uuid', $fichaProducto->id_producto)
-                        ->lockForUpdate()
-                        ->first();
+                    $producto = Producto::with(['composicion.componenteProducto' => function($query) {
+                        $query->select('uuid', 'nombre', 'stock', 'stock_reservado');
+                    }])
+                    ->where('uuid', $fichaProducto->id_producto)
+                    ->lockForUpdate()
+                    ->first();
                     
                     if ($producto) {
                         if ($producto->combinado == 1) {
-                            // Producto combinado: confirmar venta de componentes
-                            $productosCombinados = DB::connection('site')
-                                ->table('composicion_productos')
-                                ->where('id_producto', $producto->uuid)
-                                ->get();
-                            
-                            foreach ($productosCombinados as $productoCombinado) {
-                                // Lock de cada componente
-                                $componente = Producto::where('uuid', $productoCombinado->id_componente)
-                                    ->lockForUpdate()
-                                    ->first();
+                            // Producto combinado: confirmar venta de componentes (ya cargados con eager loading)
+                            foreach ($producto->composicion as $composicion) {
+                                $componente = $composicion->componenteProducto;
                                 
                                 if ($componente) {
-                                    // Verificar que haya stock suficiente
-                                    if ($componente->stock < $fichaProducto->cantidad) {
-                                        throw new \Exception('Stock insuficiente para ' . $componente->nombre);
+                                    // Lock del componente
+                                    $componenteLocked = Producto::where('uuid', $componente->uuid)
+                                        ->lockForUpdate()
+                                        ->first();
+                                    
+                                    if ($componenteLocked) {
+                                        // Verificar que haya stock suficiente
+                                        if ($componenteLocked->stock < $fichaProducto->cantidad) {
+                                            throw new \Exception('Stock insuficiente para ' . $componenteLocked->nombre);
+                                        }
+                                        
+                                        // Confirmar venta: descuenta stock real y libera reserva
+                                        $componenteLocked->confirmarVenta($fichaProducto->cantidad);
+                                        
+                                        // OPTIMIZADO: Verificar stock bajo de forma asíncrona
+                                        NotificarStockBajo::dispatch($componenteLocked->uuid)->afterCommit();
                                     }
-                                    
-                                    // Confirmar venta: descuenta stock real y libera reserva
-                                    $componente->confirmarVenta($fichaProducto->cantidad);
-                                    
-                                    // Verificar stock bajo
-                                    $stockService = new \App\Services\StockNotificationService();
-                                    $stockService->verificarYNotificar($componente->uuid);
                                 }
                             }
                         } else {
@@ -1592,9 +1601,8 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
                             // Confirmar venta: descuenta stock real y libera reserva
                             $producto->confirmarVenta($fichaProducto->cantidad);
                             
-                            // Verificar stock bajo
-                            $stockService = new \App\Services\StockNotificationService();
-                            $stockService->verificarYNotificar($producto->uuid);
+                            // OPTIMIZADO: Verificar stock bajo de forma asíncrona
+                            NotificarStockBajo::dispatch($producto->uuid)->afterCommit();
                         }
                     }
                 }

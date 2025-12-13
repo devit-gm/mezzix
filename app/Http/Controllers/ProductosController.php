@@ -40,6 +40,8 @@ class ProductosController extends Controller
     public function index()
     {
         $productos = productos_menu();
+        $ajustes = \App\Models\Ajustes::first();
+        
         // Mantener lógica de borrable y precio
         foreach ($productos as $producto) {
             // Reemplazar familia con su relación real si existe la relación cargada
@@ -60,7 +62,7 @@ class ProductosController extends Controller
                 $producto->borrable = true;
             }
         }
-        return view('productos.index', compact('productos'));
+        return view('productos.index', compact('productos', 'ajustes'));
 
     }
 

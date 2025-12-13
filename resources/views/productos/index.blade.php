@@ -34,10 +34,16 @@
                                             <th scope="col-auto" class="text-center" style="width: 90px;">{{ __('Imagen') }}</th>
                                             <th scope="col-auto">{{ __('Nombre') }}</th>
                                             <th scope="col-auto" class="text-center">{{ __('Precio') }}</th>
+                                           
                                         </tr>
                                     </thead>
                                     <tbody>
                                         @foreach ($productos as $producto)
+                                        @php
+                                            $stockDisponible = max(0, $producto->stock - ($producto->stock_reservado ?? 0));
+                                            $esStockBajo = $stockDisponible <= ($ajustes->stock_minimo ?? 5) && $stockDisponible > 0;
+                                            $esAgotado = $stockDisponible <= 0;
+                                        @endphp
                                         <tr class="clickable-row" data-href="{{ route('productos.edit', $producto->uuid) }}" data-hrefborrar="{{ route('productos.destroy', $producto->uuid) }}" data-textoborrar="{{ __('¿Está seguro de eliminar el producto?') }}" data-borrable="{{$producto->borrable}}">
                                             <td class="align-middle">
                                                 <img width="80" height="80" 
@@ -61,6 +67,7 @@
                                             <td class="align-middle text-center">
                                                 {{ $producto->precio }}€
                                             </td>
+                                            
 
                                         </tr>
                                         @endforeach
@@ -88,4 +95,16 @@
                         </div>
                     </form>
                 </div>
+
+@push('scripts')
+<script>
+    // Inicializar tooltips de Bootstrap
+    document.addEventListener('DOMContentLoaded', function() {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    });
+</script>
+@endpush
 @endsection

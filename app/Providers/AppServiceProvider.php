@@ -12,6 +12,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Log;
+use App\Models\FichaProducto;
+use App\Models\Producto;
+use App\Models\ComposicionProducto;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -61,6 +64,26 @@ class AppServiceProvider extends ServiceProvider
         config(['site.favicon' => $site->favicon]);
 
         $this->defineSiteRoutes($site);
+        
+        // OPTIMIZADO: Eager loading global para prevenir N+1 queries
+        $this->configureEagerLoading();
+    }
+    
+    /**
+     * Configurar eager loading por defecto en modelos críticos
+     */
+    protected function configureEagerLoading()
+    {
+        // FichaProducto siempre carga su producto relacionado
+        FichaProducto::preventLazyLoading(!app()->isProduction());
+        
+        // Producto siempre carga composición cuando se accede
+        Producto::preventLazyLoading(!app()->isProduction());
+        
+        // ComposicionProducto siempre carga el componente
+        ComposicionProducto::preventLazyLoading(!app()->isProduction());
+        
+        Log::info('Eager loading global configurado para prevenir N+1 queries');
     }
 
     protected function defineSiteRoutes($site)
