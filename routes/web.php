@@ -18,7 +18,6 @@ use App\Http\Controllers\SitiosController;
 use App\Http\Controllers\SmsController;
 use App\Http\Controllers\ContactoController;
 use App\Http\Controllers\ManifestController;
-use App\Http\Controllers\PwaConfigController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Middleware\RoleMiddleware;
 use App\Services\FirebaseService;
@@ -38,7 +37,6 @@ use App\Services\FirebaseService;
 
 // Rutas públicas para PWA
 Route::get('/manifest.json', [ManifestController::class, 'show'])->name('manifest');
-Route::get('/pwa-config.json', [PwaConfigController::class, 'getIconPath'])->name('pwa.config');
 
 // Ruta protegida para ejecución de cron desde IONOS
 Route::get('/cron/reservas-verificar/{token}', function($token) {
@@ -199,6 +197,7 @@ Route::middleware(['detect.site', 'auth'])->group(function () {
     // Informes para modo fichas
     Route::get('/informes/ventas-productos-fichas', [InformesController::class, 'ventasProductosFichas'])->name('informes.ventas-productos-fichas');
     Route::get('/informes/ventas-socios', [InformesController::class, 'ventasSocios'])->name('informes.ventas-socios');
+    Route::get('/informes/compras-usuarios', [InformesController::class, 'comprasUsuarios'])->name('informes.compras-usuarios');
     Route::get('/informes/evolucion-temporal', [InformesController::class, 'evolucionTemporal'])->name('informes.evolucion-temporal');
 
     Route::get('/facturacion', [FacturacionController::class, 'index'])->name('facturacion.index');

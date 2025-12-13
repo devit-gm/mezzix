@@ -6,22 +6,23 @@
     <div class="row justify-content-center h-100">
         <div class="col-md-12 col-sm-12 col-lg-12 d-flex h-100">
             <div class="card flex-fill d-flex flex-column">
-                <div class="card-header fondo-rojo"><i class="bi bi-receipt"></i> {{ $ajustes->modo_operacion === 'mesas' ? __("MESA") . ' ' . $ficha->numero_mesa . ' - ' . __("Asistentes") : __("FICHA - Asistentes") }}</div>
-
+                <div class="card-header fondo-rojo d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-journal-text"></i> {{ $ajustes->modo_operacion === 'mesas' ? $ficha->descripcion : __("Ficha") . ' - '  . __("Asistentes") }}</span>
+                    
+                        <span class="badge bg-light text-dark fs-5">{{ number_format($ficha->precio,2) }} <i class="bi bi-currency-euro"></i></span>
+                    
+                </div>
                 <div class="card-body overflow-auto flex-fill">
-                    <div class="d-flex justify-content-between align-items-center col-sm-12 col-md-12 col-lg-12 mb-3">
-                        <button class="btn btn-lg btn-light border border-dark"><i class="bi bi-people"></i> {{ $ficha->total_comensales }}</button>
-                        <button class="btn btn-lg btn-light border border-dark">{{number_format($ficha->precio,2)}} <i class="bi bi-currency-euro"></i></button>
-                    </div>
-                    <div class="container-fluid p-0 mt-3">
+                    
+                    <div class="container-fluid p-0 ">
                         <div class="row justify-content-center align-items-center">
-                            <div class="col-12 col-md-12 col-lg-12" style="padding: 0px;">
+                           
 
 
                                 <form id='editar-usuariosficha' action="{{ fichaRoute('updateusuarios', $ficha->uuid) }}" method="post">
                                     @csrf
                                     @method('PUT')
-                                    <div class="container mt-3">
+                                    <div class="container-fluid">
                                         <div class="row">
                                             @if ($errors->any())
                                             <div class="custom-error-container" id="custom-error-container">
@@ -135,8 +136,8 @@
 
             <!-- Switch on/off -->
             @if($ficha->estado == 0)
-            <td class="align-middle text-center">
-                <div class="form-check form-switch m-0 p-0">
+            <td class="align-middle text-center justify-content-center align-items-center">
+                <div class="form-check form-switch m-0 p-0" style="display: inline-block;">
                     <input 
                         class="form-check-input 
                                @if($ficha->tipo != 4 && $usuario->id == $ficha->user_id) readonly @endif"
@@ -145,6 +146,7 @@
                         name="usuarios[{{ $usuario->id }}]"
                         id="usuarios[{{ $usuario->id }}]"
                         value="{{ $usuario->id }}"
+                        
                         @if($usuario->marcado == 1) checked @endif
                         @if($ficha->estado == 1) disabled @endif
                     >
@@ -153,11 +155,11 @@
             @endif
 
             <!-- Invitados -->
-            <td class="align-middle text-center">
+            <td class="align-middle text-center justify-content-center align-items-center" ">
                 <select class="form-control form-select"
                         name="invitados[{{ $usuario->id }}]"
                         id="invitados[{{ $usuario->id }}]"
-                        style="width: 60px;"
+                        style="width: 60px; display: inline-block;"
                         @if($ficha->estado == 1) disabled @endif>
                     @for ($i = 0; $i <= $ajustes->max_invitados_cobrar; $i++)
                         <option value="{{ $i }}" @if($usuario->invitados == $i) selected @endif>
@@ -168,11 +170,11 @@
             </td>
 
             <!-- Niños -->
-            <td class="align-middle text-center">
+            <td class="align-middle text-center justify-content-center align-items-center" >
                 <select class="form-control form-select"
                         name="ninos[{{ $usuario->id }}]"
                         id="ninos[{{ $usuario->id }}]"
-                        style="width: 60px;"
+                        style="width: 60px; display: inline-block;"
                         @if($ficha->estado == 1) disabled @endif>
                     @for ($i = 0; $i <= $ajustes->max_invitados_cobrar; $i++)
                         <option value="{{ $i }}" @if($usuario->ninos == $i) selected @endif>
@@ -195,7 +197,7 @@
                     </div>
                 </div>
 
-            </div>
+           
         </div>
     </div>
 </div>
@@ -220,6 +222,7 @@
                 @endif
             @endif
             <a class="btn btn-dark mx-1" href={{ fichaRoute('servicios', $ficha->uuid) }}><i class="bi bi-chevron-right"></i></a>
+            <button class="btn btn-dark mx-1" style="position: absolute;   right: 12px;    border: 0 !important; font-size: 0.8em !important; box-shadow:none"><i class="bi bi-people" style="font-size: 1.5em !important;"></i> {{ $ficha->total_comensales }}</button>
         </div>
     </form>
 </div>

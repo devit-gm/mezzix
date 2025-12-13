@@ -5,13 +5,16 @@
     <div class="row justify-content-center h-100">
         <div class="col-md-12 col-sm-12 col-lg-12 d-flex h-100">
             <div class="card flex-fill d-flex flex-column">
-                <div class="card-header fondo-rojo"><i class="bi bi-receipt"></i> {{ $ajustes->modo_operacion === 'mesas' ? __("MESA") . ' ' . $ficha->numero_mesa . ' - ' . __("Gastos") : __('FICHA - Gastos') }}</div>
+                <div class="card-header fondo-rojo d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-journal-text"></i> {{ $ajustes->modo_operacion === 'mesas' ? $ficha->descripcion : __("Ficha") . ' - '  . __("Gastos") }}</span>
+                    
+                        <span class="badge bg-light text-dark fs-5">{{ number_format($ficha->precio,2) }} <i class="bi bi-currency-euro"></i></span>
+                    
+                </div>
 
                 <div class="card-body overflow-auto flex-fill">
                     @if($ficha->tipo != 3)
-                    <div class="d-grid gap-2 d-md-flex justify-content-end col-sm-12 col-md-8 col-lg-12">
-                        <button class="btn btn-lg btn-light border border-dark">{{number_format($ficha->precio,2)}} <i class="bi bi-currency-euro"></i></button>
-                    </div>
+                    
                     @else
                     @php
                     $totalGastos = 0;
@@ -22,15 +25,15 @@
                     @endphp
                     @endforeach
 
-                    <div class="d-grid gap-2 d-md-flex justify-content-end col-sm-12 col-md-8 col-lg-12">
+                    <div class="d-grid gap-2 d-md-flex justify-content-end col-sm-12 col-md-12 col-lg-12">
                         <button class="btn btn-lg btn-light border border-dark">{{number_format($totalGastos,2)}} <i class="bi bi-currency-euro"></i></button>
                     </div>
                     @endif
-                    <div class="container-fluid p-0 mt-3">
+                    <div class="container-fluid">
                         <div class="row justify-content-center align-items-center">
-                            <div class="col-12 col-md-12 col-lg-12">
-                                <div class="container mt-3">
-                                    <div class="row">
+                            
+                              
+                                    <div class="row col-12 p-0">
                                         @if ($errors->any())
                                         <div class="custom-error-container" id="custom-error-container">
                                             <ul class="custom-error-list">
@@ -188,8 +191,7 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
+                
 
 
             </div>

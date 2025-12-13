@@ -6,7 +6,7 @@
         <div class="col-md-12 col-sm-12 col-lg-12 d-flex">
             <div class="card flex-fill">
                 <div class="card-header fondo-rojo d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-journal-text"></i> {{ $ajustes->modo_operacion === 'mesas' ? $ficha->descripcion : __("Ficha") . ' - '  . __('Ficha - Resumen') }}</span>
+                    <span><i class="bi bi-journal-text"></i> {{ $ajustes->modo_operacion === 'mesas' ? $ficha->descripcion :  __('Ficha - Resumen') }}</span>
                     <!-- @if($ajustes->modo_operacion === 'mesas')
                         <span class="badge bg-light text-dark fs-5">{{ number_format($ficha->precio,2) }} <i class="bi bi-currency-euro"></i></span>
                     @endif -->
@@ -18,7 +18,7 @@
                         <button class="btn btn-lg btn-light border border-dark">{{number_format($ficha->precio,2)}} <i class="bi bi-currency-euro"></i></button>
                     </div>
                     @endif -->
-                    <div class="container-fluid @if($ajustes->modo_operacion !== 'mesas') mt-3 @endif" style="padding:0px;">
+                    <div class="container-fluid @if($ajustes->modo_operacion !== 'mesas') @endif" style="padding:0px;">
                         <div class="row justify-content-center align-items-center">
                             <div class="col-12 col-md-12 col-lg-12">
                                 <form id="ficha-resumen" action="{{ fichaRoute('enviar', $ficha->uuid) }}" method="post">

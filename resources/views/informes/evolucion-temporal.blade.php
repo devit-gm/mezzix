@@ -113,6 +113,50 @@
                                 </table>
                             </div>
                         </div>
+</div>
+<div class="container-fluid">
+
+                        <!-- Compras por mes (últimos 12 meses) -->
+                        <div class="row">
+                            <h5 class="mb-3"><i class="bi bi-cart-fill"></i> {{ __('Compras Mensuales') }} ({{ __('Últimos 12 meses') }})</h5>
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>{{ __('Mes') }}</th>
+                                            <th class="text-center">{{ __('Fichas') }}</th>
+                                            <th class="text-end">{{ __('Total') }}</th>
+                                            <th class="text-end">{{ __('Ticket Medio') }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @php
+                                            $maxComprasMes = $comprasPorMes->max('total_gastado') ?? 1;
+                                        @endphp
+                                        @forelse($comprasPorMes as $compra)
+                                        <tr>
+                                            <td class="fw-bold">
+                                                <i class="bi bi-calendar-month"></i>
+                                                {{ $compra->mes_nombre }}
+                                            </td>
+                                            <td class="text-center">
+                                                {{ $compra->num_transacciones }}
+                                            </td>
+                                            <td class="text-end fw-bold">{{ number_format($compra->total_gastado, 2) }}€</td>
+                                            <td class="text-end">{{ number_format($compra->ticket_medio, 2) }}€</td>
+                                        </tr>
+                                        @empty
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted py-4">
+                                                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                                {{ __('No hay datos disponibles') }}
+                                            </td>
+                                        </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

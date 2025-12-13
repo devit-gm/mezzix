@@ -467,12 +467,13 @@ class InformesController extends Controller
             ->select(
                 'productos.uuid',
                 'productos.nombre as producto',
-                'productos.precio',
+                'productos.combinado',
                 'familias.nombre as familia',
                 DB::raw('SUM(fichas_productos.cantidad) as cantidad_vendida'),
-                DB::raw('SUM(fichas_productos.precio) as total_vendido')
+                DB::raw('SUM(fichas_productos.precio) as total_vendido'),
+                DB::raw('AVG(fichas_productos.precio / fichas_productos.cantidad) as precio')
             )
-            ->groupBy('productos.uuid', 'productos.nombre', 'productos.precio', 'familias.nombre')
+            ->groupBy('productos.uuid', 'productos.nombre', 'productos.combinado', 'familias.nombre')
             ->orderByDesc('total_vendido')
             ->get();
 
@@ -501,7 +502,8 @@ class InformesController extends Controller
             ->table('fichas')
             ->whereDate('fichas.fecha', '>=', $fechaInicial)
             ->whereDate('fichas.fecha', '<=', $fechaFinal)
-            ->where('fichas.tipo', '<', 5) // Excluir fichas de mesas (tipo 5)
+            ->where('fichas.tipo', '<', 5) // Excluir fichas de mesas (tipo 5) y de compras (tipo 3)
+            ->where('fichas.tipo', '!=', 3) // Excluir fichas de compras (tipo 3)
             ->where('fichas.estado', 1) // Estado cerrado
             ->whereNotNull('fichas.user_id')
             ->select(
@@ -538,6 +540,61 @@ class InformesController extends Controller
     }
 
     /**
+     * Informe de compras por usuario (modo fichas, tipo 3)
+     */
+    public function comprasUsuarios(Request $request)
+    {
+        $ajustes = DB::connection('site')->table('ajustes')->first();
+        
+        if ($ajustes->modo_operacion === 'mesas') {
+            return redirect()->route('informes.index');
+        }
+
+        $fechaInicial = $request->input('fecha_inicial', now()->startOfMonth()->format('Y-m-d'));
+        $fechaFinal = $request->input('fecha_final', now()->format('Y-m-d'));
+
+        // Obtener compras por usuario desde fichas tipo 3
+        $comprasPorUsuario = DB::connection('site')
+            ->table('fichas')
+            ->whereDate('fichas.fecha', '>=', $fechaInicial)
+            ->whereDate('fichas.fecha', '<=', $fechaFinal)
+            ->where('fichas.tipo', 3) // Solo fichas de compras
+            ->where('fichas.estado', 1) // Estado cerrado
+            ->whereNotNull('fichas.user_id')
+            ->select(
+                'fichas.user_id',
+                DB::raw('COUNT(DISTINCT fichas.uuid) as total_compras'),
+                DB::raw('SUM(fichas.precio) as total_gastado'),
+                DB::raw('AVG(fichas.precio) as ticket_medio')
+            )
+            ->groupBy('fichas.user_id')
+            ->get()
+            ->keyBy('user_id');
+
+        // Obtener nombres de usuarios desde la base de datos principal
+        $usuarioIds = $comprasPorUsuario->keys()->toArray();
+        $usuarios = DB::table('users')
+            ->whereIn('id', $usuarioIds)
+            ->pluck('name', 'id');
+
+        // Combinar datos
+        $comprasUsuarios = $comprasPorUsuario->map(function ($compra) use ($usuarios) {
+            return (object) [
+                'id' => $compra->user_id,
+                'usuario' => $usuarios[$compra->user_id] ?? 'Desconocido',
+                'total_compras' => $compra->total_compras,
+                'total_gastado' => $compra->total_gastado,
+                'ticket_medio' => $compra->ticket_medio
+            ];
+        })->sortByDesc('total_gastado')->values();
+
+        $totalGeneral = $comprasUsuarios->sum('total_gastado');
+        $comprasTotal = $comprasUsuarios->sum('total_compras');
+
+        return view('informes.compras-usuarios', compact('comprasUsuarios', 'totalGeneral', 'comprasTotal', 'fechaInicial', 'fechaFinal'));
+    }
+
+    /**
      * Informe de evolución temporal (modo fichas)
      */
     public function evolucionTemporal(Request $request)
@@ -556,7 +613,8 @@ class InformesController extends Controller
             ->table('fichas')
             ->whereDate('fecha', '>=', $fechaInicial)
             ->whereDate('fecha', '<=', $fechaFinal)
-            ->where('tipo','<', 5) // Excluir fichas de mesas (tipo 5)
+            ->where('tipo','<', 5) // Excluir fichas de mesas (tipo 5) y de tipo 3 (compras)
+            ->where('tipo','!=', 3)  
             ->where('estado', 1) // Estado cerrado
             ->select(
                 DB::raw('DATE(fecha) as fecha'),
@@ -593,9 +651,34 @@ class InformesController extends Controller
             return $item;
         });
 
+        // Compras por mes desde fichas tipo 3
+        $comprasPorMes = DB::connection('site')
+            ->table('fichas')
+            ->whereDate('fecha', '>=', now()->subMonths(12)->format('Y-m-d'))
+            ->whereDate('fecha', '<=', now()->format('Y-m-d'))
+            ->where('tipo', 3) // Solo fichas de compras
+            ->where('estado', 1)
+            ->select(
+                DB::raw('YEAR(fecha) as año'),
+                DB::raw('MONTH(fecha) as mes'),
+                DB::raw('COUNT(*) as num_transacciones'),
+                DB::raw('SUM(precio) as total_gastado'),
+                DB::raw('AVG(precio) as ticket_medio')
+            )
+            ->groupBy(DB::raw('YEAR(fecha)'), DB::raw('MONTH(fecha)'))
+            ->orderBy('año')
+            ->orderBy('mes')
+            ->get();
+
+        // Formatear mes/año en formato compacto MM/YYYY
+        $comprasPorMes = $comprasPorMes->map(function($item) {
+            $item->mes_nombre = sprintf('%02d/%d', $item->mes, $item->año);
+            return $item;
+        });
+
         $totalPeriodo = $ventasPorDia->sum('total_vendido');
         $transaccionesTotal = $ventasPorDia->sum('num_transacciones');
 
-        return view('informes.evolucion-temporal', compact('ventasPorDia', 'ventasPorMes', 'totalPeriodo', 'transaccionesTotal', 'fechaInicial', 'fechaFinal'));
+        return view('informes.evolucion-temporal', compact('ventasPorDia', 'ventasPorMes', 'comprasPorMes', 'totalPeriodo', 'transaccionesTotal', 'fechaInicial', 'fechaFinal'));
     }
 }

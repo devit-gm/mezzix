@@ -118,11 +118,11 @@ foreach ($fichas as $ficha) {
 
     // Calcular comensales
     $usuariosFicha = ($ficha->tipo == 1)
-        ? collect([$ficha->usuario])
+        ? collect([$ficha->usuario])->filter()
         : $ficha->inscritos;
 
-    $ficha->total_comensales = $usuariosFicha->sum(fn($u) => 1 + $u->invitados + $u->ninos);
-    $ficha->total_ninos      = $usuariosFicha->sum('ninos');
+    $ficha->total_comensales = $usuariosFicha->sum(fn($u) => 1 + ($u->invitados ?? 0) + ($u->ninos ?? 0));
+    $ficha->total_ninos      = $usuariosFicha->sum(fn($u) => $u->ninos ?? 0);
 }
 
 // Si son fichas cerradas, limitar a 20 más recientes después del filtro de permisos

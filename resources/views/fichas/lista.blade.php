@@ -7,19 +7,15 @@
             <div class="card flex-fill d-flex flex-column">
 
                 <div class="card-header fondo-rojo d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-journal-text"></i> {{ $ajustes->modo_operacion === 'mesas' ? $ficha->descripcion : __("Ficha") . ' - '  . __("FICHA - CONSUMO") }}</span>
-                    @if($ajustes->modo_operacion === 'mesas')
+                    <span><i class="bi bi-journal-text"></i> {{ $ajustes->modo_operacion === 'mesas' ? $ficha->descripcion :  __("FICHA - CONSUMO") }}</span>
+                    
                         <span class="badge bg-light text-dark fs-5">{{ number_format($ficha->precio,2) }} <i class="bi bi-currency-euro"></i></span>
-                    @endif
+                   
                 </div>
 
                 <div class="card-body overflow-auto flex-fill">
-                    @if($ajustes->modo_operacion !== 'mesas')
-                    <div class="d-grid gap-2 d-md-flex justify-content-end col-sm-12 col-md-8 col-lg-12">
-                        <button class="btn btn-lg btn-light border border-dark">{{number_format($ficha->precio,2)}} <i class="bi bi-currency-euro"></i></button>
-                    </div>
-                    @endif
-                    <div class="container-fluid p-0 @if($ajustes->modo_operacion !== 'mesas') mt-3 @endif">
+                   
+                    <div class="container-fluid p-0 @if($ajustes->modo_operacion !== 'mesas') @endif">
                         <div class="row justify-content-center align-items-center">
                             <div class="col-12 col-md-12 col-lg-12">
                                 @if ($errors->any())
