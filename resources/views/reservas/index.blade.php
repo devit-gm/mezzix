@@ -5,7 +5,7 @@
     <div class="row justify-content-center h-100">
         <div class="col-md-12 col-sm-12 col-lg-12 d-flex h-100">
             <div class="card flex-fill d-flex flex-column">
-                <div class="card-header fondo-rojo"><i class="bi bi-calendar3"></i> {{ __('Bookings') }}</div>
+                <div class="card-header fondo-rojo"><i class="bi bi-calendar3"></i> {{ __('Bookings') }} - Gestión</div>
 
                 <div class="card-body overflow-auto flex-fill">
                     <div class="container-fluid">
@@ -149,6 +149,7 @@
                     <form>
                         <div class="d-flex align-items-center justify-content-center">
                             <a href="{{ route('reservas.create') }}" class="btn btn-primary fondo-rojo borde-rojo mx-1"><i class="bi bi-plus-circle"></i></a>
+                            <a href="{{ route('reservas.calendario') }}" class="btn btn-primary fondo-rojo borde-rojo mx-1"><i class="bi bi-calendar-week"></i></a>
                         </div>
                     </form>
                 </div>

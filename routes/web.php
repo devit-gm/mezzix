@@ -247,6 +247,7 @@ Route::middleware(['detect.site', 'auth'])->group(function () {
     Route::delete('/servicios/{uuid}', ServiciosController::class . '@destroy')->name('servicios.destroy');
 
     Route::get('/reservas', [ReservasController::class, 'index'])->name('reservas.index');
+    Route::get('/reservas/calendario', [ReservasController::class, 'calendario'])->name('reservas.calendario');
     Route::get('/reservas/create', [ReservasController::class, 'create'])->name('reservas.create');
     Route::post('/reservas', [ReservasController::class, 'store'])->name('reservas.store');
     Route::delete('/reservas/{uuid}', ReservasController::class . '@destroy')->name('reservas.destroy');

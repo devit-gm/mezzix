@@ -222,4 +222,77 @@ class ReservasController extends Controller
 
         return redirect()->route('reservas.index')->with('success', __('Reserva actualizada con éxito.'));
     }
+
+    public function calendario(Request $request)
+    {
+        Carbon::setLocale(app()->getLocale());
+        
+        // Obtener mes y año actuales o los proporcionados
+        $mes = $request->get('mes', now()->month);
+        $año = $request->get('año', now()->year);
+        
+        // Crear fecha del primer día del mes
+        $primerDia = Carbon::create($año, $mes, 1);
+        $ultimoDia = $primerDia->copy()->endOfMonth();
+        
+        // Calcular mes anterior y siguiente
+        $mesPrev = $primerDia->copy()->subMonth()->month;
+        $añoPrev = $primerDia->copy()->subMonth()->year;
+        $mesNext = $primerDia->copy()->addMonth()->month;
+        $añoNext = $primerDia->copy()->addMonth()->year;
+        
+        // Nombre del mes en español
+        $mesesNombres = [
+            1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril',
+            5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto',
+            9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'
+        ];
+        $mesNombre = $mesesNombres[$mes];
+        
+        // Obtener todas las reservas del mes
+        $reservas = Reserva::with('usuario')
+            ->whereBetween('start_time', [$primerDia->copy()->startOfDay(), $ultimoDia->copy()->endOfDay()])
+            ->orderBy('start_time')
+            ->get();
+        
+        // Agrupar reservas por día
+        $reservasPorDia = $reservas->groupBy(function($reserva) {
+            return Carbon::parse($reserva->start_time)->format('Y-m-d');
+        });
+        
+        // Construir el calendario
+        $calendario = [];
+        $diaActual = $primerDia->copy();
+        
+        // Retroceder al lunes de la primera semana
+        while ($diaActual->dayOfWeekIso != 1) {
+            $diaActual->subDay();
+        }
+        
+        // Generar 6 semanas (para cubrir todos los casos)
+        for ($semana = 0; $semana < 6; $semana++) {
+            $calendario[$semana] = [];
+            for ($dia = 0; $dia < 7; $dia++) {
+                $calendario[$semana][$dia] = [
+                    'numero' => $diaActual->day,
+                    'fecha' => $diaActual->format('Y-m-d'),
+                    'mes_actual' => $diaActual->month == $mes,
+                    'es_hoy' => $diaActual->isToday()
+                ];
+                $diaActual->addDay();
+            }
+        }
+        
+        return view('reservas.calendario', compact(
+            'calendario',
+            'reservasPorDia',
+            'mes',
+            'año',
+            'mesNombre',
+            'mesPrev',
+            'añoPrev',
+            'mesNext',
+            'añoNext'
+        ));
+    }
 }

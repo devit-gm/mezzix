@@ -676,8 +676,15 @@
                         </div>
                     </li>
 
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('reservas.*') ? 'active' : '' }}" href="{{ url('/reservas') }}">{{ __('Bookings') }}</a>
+                    <li class="nav-item dropdown">
+                        <a id="navbarDropdownReservas" class="nav-link dropdown-toggle {{ request()->routeIs('reservas.*') ? 'active' : '' }}" href="#" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
+                            {{ __('RESERVAS') }}
+                        </a>
+
+                        <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownReservas">
+                            <a class="dropdown-item {{ request()->routeIs('reservas.index') || request()->routeIs('reservas.create') || request()->routeIs('reservas.edit') ? 'active' : '' }}" href="{{ url('/reservas') }}">{{ __('GESTIÓN') }}</a>
+                            <a class="dropdown-item {{ request()->routeIs('reservas.calendario') ? 'active' : '' }}" href="{{ route('reservas.calendario') }}">{{ __('CALENDARIO') }}</a>
+                        </div>
                     </li>
                     
                     <li class="nav-item dropdown">
