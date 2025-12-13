@@ -23,7 +23,9 @@ class Producto extends Model
         'combinado',
         'precio',
         'ean13',
-        'iva'
+        'iva',
+        'stock',
+        'stock_reservado'
     ];
 
     /*
@@ -31,6 +33,72 @@ class Producto extends Model
      | MÉTODOS DE CÁLCULO
      |--------------------------------------------------------------------------
      */
+
+    /**
+     * Obtener stock disponible (stock real - stock reservado)
+     */
+    public function stockDisponible()
+    {
+        return ($this->stock ?? 0) - ($this->stock_reservado ?? 0);
+    }
+
+    /**
+     * Verificar si hay stock disponible suficiente
+     */
+    public function tieneStockDisponible($cantidadSolicitada)
+    {
+        // Si no tiene stock configurado, consideramos que hay disponibilidad ilimitada
+        if ($this->stock === null) {
+            return true;
+        }
+        
+        return $this->stockDisponible() >= $cantidadSolicitada;
+    }
+
+    /**
+     * Reservar stock para una ficha
+     */
+    public function reservarStock($cantidad)
+    {
+        if ($this->stock === null) {
+            return true; // No gestiona stock
+        }
+
+        $this->increment('stock_reservado', $cantidad);
+        return true;
+    }
+
+    /**
+     * Liberar stock reservado
+     */
+    public function liberarStock($cantidad)
+    {
+        if ($this->stock === null) {
+            return true; // No gestiona stock
+        }
+
+        $nuevoStockReservado = max(0, ($this->stock_reservado ?? 0) - $cantidad);
+        $this->update(['stock_reservado' => $nuevoStockReservado]);
+        return true;
+    }
+
+    /**
+     * Confirmar venta (descontar de stock real y liberar reserva)
+     */
+    public function confirmarVenta($cantidad)
+    {
+        if ($this->stock === null) {
+            return true; // No gestiona stock
+        }
+
+        // Descontar del stock real
+        $this->decrement('stock', $cantidad);
+        
+        // Liberar la reserva
+        $this->liberarStock($cantidad);
+        
+        return true;
+    }
 
     /**
      * Calcular precio con IVA incluido (el precio ya viene con IVA)
