@@ -17,7 +17,7 @@
                                 <a href="{{ route('reservas.calendario', ['mes' => $mesPrev, 'año' => $añoPrev]) }}" class="btn btn-sm btn-outline-secondary">
                                     <i class="bi bi-chevron-left"></i> {{ __('Previous') }}
                                 </a>
-                                <h4 class="mb-0">{{ $mesNombre }} {{ $año }}</h4>
+                                <h4 class="mb-0 text-center">{{ $mesNombre }} {{ $año }}</h4>
                                 <a href="{{ route('reservas.calendario', ['mes' => $mesNext, 'año' => $añoNext]) }}" class="btn btn-sm btn-outline-secondary">
                                     {{ __('Next') }} <i class="bi bi-chevron-right"></i>
                                 </a>
@@ -52,10 +52,9 @@
                                                                 <div class="reserva-mini" 
                                                                      data-bs-toggle="tooltip" 
                                                                      title="{{ $reserva->usuario->name ?? 'Sin usuario' }} - {{ \Carbon\Carbon::parse($reserva->start_time)->format('H:i') }} a {{ \Carbon\Carbon::parse($reserva->end_time)->format('H:i') }}">
-                                                                    <small>
-                                                                        <i class="bi bi-circle-fill"></i>
-                                                                        {{ \Carbon\Carbon::parse($reserva->start_time)->format('H:i') }} {{ $reserva->usuario->name ?? 'Sin usuario' }}
-                                                                    </small>
+                                                                    
+                                                                        {{ \Carbon\Carbon::parse($reserva->start_time)->format('H:i') }}
+                                                                   
                                                                 </div>
                                                             @endforeach
                                                         </div>
@@ -148,7 +147,7 @@
     font-weight: 600;
     color: #495057;
     border-right: 1px solid #dee2e6;
-    font-size:0.9rem;
+    font-size:1.4rem;
 }
 
 .calendar-day-header:last-child {
@@ -215,7 +214,7 @@
     padding: 2px 6px;
     border-radius: 4px;
     margin-bottom: 4px;
-    font-size: 11px;
+    font-size: 15px;
     cursor: pointer;
     transition: background-color 0.2s;
 }
@@ -239,13 +238,18 @@
         min-height: 80px;
         padding: 4px;
     }
+
+    .calendar-day-header {
+        font-size: 1rem;
+        padding: 8px;
+    }
     
     .calendar-day-number {
         font-size: 12px;
     }
     
     .reserva-mini {
-        font-size: 9px;
+        font-size: 12px;
         padding: 1px 4px;
     }
 }
