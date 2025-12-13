@@ -921,7 +921,18 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
     public function updateusuarios($uuid, Request $request)
     {
         $site = app('site');
+        
+        // Obtener usuarios antes de la actualización (para detectar cambios)
+        $usuariosAntes = FichaUsuario::where('id_ficha', $uuid)
+            ->pluck('user_id')
+            ->toArray();
+        
+        // Eliminar todos los usuarios actuales
         FichaUsuario::where('id_ficha', $uuid)->delete();
+        
+        // Array para usuarios después de la actualización
+        $usuariosDespues = [];
+        
         if ($request->usuarios != null) {
             foreach ($request->usuarios as $usuario) {
                 $idUsuario = intval(str_replace("]", "", str_replace("[", "", $usuario)));
@@ -932,9 +943,28 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
                     'invitados' => $request->invitados[$idUsuario] ?? 0,
                     'ninos' => $request->ninos[$idUsuario] ?? 0
                 ]);
+                $usuariosDespues[] = $idUsuario;
             }
         }
+        
+        // Detectar cambios y enviar notificaciones (solo si es un evento - tipo 4)
         $ficha = Ficha::find($uuid);
+        if ($ficha && $ficha->tipo == 4) {
+            // Usuarios añadidos (están en después pero no en antes)
+            $usuariosAnadidos = array_diff($usuariosDespues, $usuariosAntes);
+            foreach ($usuariosAnadidos as $userId) {
+                \App\Jobs\NotificarOrganizadorEvento::dispatch($uuid, $userId, 'inscripcion')
+                    ->afterCommit();
+            }
+            
+            // Usuarios eliminados (están en antes pero no en después)
+            $usuariosEliminados = array_diff($usuariosAntes, $usuariosDespues);
+            foreach ($usuariosEliminados as $userId) {
+                \App\Jobs\NotificarOrganizadorEvento::dispatch($uuid, $userId, 'cancelacion')
+                    ->afterCommit();
+            }
+        }
+        
         $ficha->precio = $this->ObtenerImporteFicha($ficha);
         $usuariosFicha = User::where('site_id', $site->id)->orderBy('id')->get();
         foreach ($usuariosFicha as $usuarioFicha) {
