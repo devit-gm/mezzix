@@ -26,25 +26,14 @@
                     </form>
 
                     <div class="row g-2 mb-3">
-                        <div class="col-4 col-md-3">
-                            <div class="alert alert-info mb-0 text-center">
-                                <small class="d-block mb-1">{{ __('Base Imponible') }}</small>
-                                <strong class="fs-5">{{ number_format($subtotalGeneral ?? 0, 2) }}€</strong>
-                            </div>
-                        </div>
-                        <div class="col-4 col-md-3">
-                            <div class="alert alert-warning mb-0 text-center">
-                                <small class="d-block mb-1">{{ __('Total Impuestos') }}</small>
-                                <strong class="fs-5">{{ number_format($totalIvaGeneral ?? 0, 2) }}€</strong>
-                            </div>
-                        </div>
+      
                         <div class="col-4 col-md-3">
                             <div class="alert alert-primary mb-0 text-center">
                                 <small class="d-block mb-1">{{ __('Total Facturado') }}</small>
                                 <strong class="fs-5">{{ number_format($totalGeneral, 2) }}€</strong>
                             </div>
                         </div>
-                        <div class="col-6 col-md-2">
+                        <div class="col-4 col-md-2">
                             <div class="alert alert-success mb-0 text-center">
                                 <small class="d-block mb-1">{{ __('Nº Artículos') }}</small>
                                 <strong class="fs-5">{{ $ventasProductos->count() }}</strong>
@@ -152,7 +141,7 @@
 @section('footer')
 <div class="card-footer">
     <div class="d-flex align-items-center justify-content-center">
-        <button type="button" onclick="document.getElementById('form-filtro-fechas').submit();" class="btn btn-secondary mx-1">
+        <button type="button" onclick="document.getElementById('form-filtro-fechas').submit();" class="btn btn-secondary borde-rojo fondo-rojo mx-1">
             <i class="bi bi-search"></i>
         </button>
     </div>

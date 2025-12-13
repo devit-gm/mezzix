@@ -462,7 +462,7 @@ class InformesController extends Controller
             ->join('familias', 'productos.familia', '=', 'familias.uuid')
             ->whereDate('fichas.fecha', '>=', $fechaInicial)
             ->whereDate('fichas.fecha', '<=', $fechaFinal)
-            ->where('fichas.tipo', 5) // Tipo 5 = fichas normales
+            ->where('fichas.tipo', '<', 5) // Excluir fichas de mesas (tipo 5)
             ->where('fichas.estado', 1) // Estado cerrado
             ->select(
                 'productos.uuid',
@@ -501,7 +501,7 @@ class InformesController extends Controller
             ->table('fichas')
             ->whereDate('fichas.fecha', '>=', $fechaInicial)
             ->whereDate('fichas.fecha', '<=', $fechaFinal)
-            ->where('fichas.tipo', 5) // Tipo 5 = fichas normales
+            ->where('fichas.tipo', '<', 5) // Excluir fichas de mesas (tipo 5)
             ->where('fichas.estado', 1) // Estado cerrado
             ->whereNotNull('fichas.user_id')
             ->select(
@@ -556,7 +556,7 @@ class InformesController extends Controller
             ->table('fichas')
             ->whereDate('fecha', '>=', $fechaInicial)
             ->whereDate('fecha', '<=', $fechaFinal)
-            ->where('tipo', 5) // Tipo 5 = fichas normales
+            ->where('tipo','<', 5) // Excluir fichas de mesas (tipo 5)
             ->where('estado', 1) // Estado cerrado
             ->select(
                 DB::raw('DATE(fecha) as fecha'),
@@ -573,7 +573,7 @@ class InformesController extends Controller
             ->table('fichas')
             ->whereDate('fecha', '>=', now()->subMonths(12)->format('Y-m-d'))
             ->whereDate('fecha', '<=', now()->format('Y-m-d'))
-            ->where('tipo', 5)
+            ->where('tipo', '<', 5)
             ->where('estado', 1)
             ->select(
                 DB::raw('YEAR(fecha) as año'),
@@ -587,15 +587,9 @@ class InformesController extends Controller
             ->orderBy('mes')
             ->get();
 
-        // Mapear nombres de meses
-        $mesesNombre = [
-            1 => __('Enero'), 2 => __('Febrero'), 3 => __('Marzo'), 4 => __('Abril'),
-            5 => __('Mayo'), 6 => __('Junio'), 7 => __('Julio'), 8 => __('Agosto'),
-            9 => __('Septiembre'), 10 => __('Octubre'), 11 => __('Noviembre'), 12 => __('Diciembre')
-        ];
-
-        $ventasPorMes = $ventasPorMes->map(function($item) use ($mesesNombre) {
-            $item->mes_nombre = $mesesNombre[$item->mes] . ' ' . $item->año;
+        // Formatear mes/año en formato compacto MM/YYYY
+        $ventasPorMes = $ventasPorMes->map(function($item) {
+            $item->mes_nombre = sprintf('%02d/%d', $item->mes, $item->año);
             return $item;
         });
 

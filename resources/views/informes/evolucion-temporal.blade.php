@@ -11,57 +11,35 @@
 
                 <div class="card-body overflow-auto flex-fill">
                     <div class="container-fluid">
+                        <div class="row col-12 mb-2">
                         <!-- Filtros de fecha -->
-                        <form method="GET" action="{{ route('informes.evolucion-temporal') }}" class="mb-4">
+                        <form id="form-filtro-fechas" method="GET" action="{{ route('informes.evolucion-temporal') }}" class="mb-4">
                             <div class="row g-3">
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <label for="fecha_inicial" class="form-label fw-bold">{{ __('Fecha inicial') }}</label>
                                     <input type="date" class="form-control" id="fecha_inicial" name="fecha_inicial" value="{{ $fechaInicial }}" required>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <label for="fecha_final" class="form-label fw-bold">{{ __('Fecha final') }}</label>
                                     <input type="date" class="form-control" id="fecha_final" name="fecha_final" value="{{ $fechaFinal }}" required>
                                 </div>
-                                <div class="col-md-4 d-flex align-items-end">
-                                    <button type="submit" class="btn btn-primary w-100">
-                                        <i class="bi bi-search"></i> {{ __('Buscar') }}
-                                    </button>
-                                </div>
                             </div>
                         </form>
-
-                        <!-- Resumen -->
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="card bg-success text-white">
-                                    <div class="card-body">
-                                        <h6 class="card-title">{{ __('Total Período') }}</h6>
-                                        <h3 class="mb-0">{{ number_format($totalPeriodo, 2) }}€</h3>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="card bg-info text-white">
-                                    <div class="card-body">
-                                        <h6 class="card-title">{{ __('Transacciones') }}</h6>
-                                        <h3 class="mb-0">{{ number_format($transaccionesTotal, 0) }}</h3>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
 
+</div>
+<div class="container-fluid">
                         <!-- Ventas por día -->
-                        <div class="mb-5">
+                        <div class="row mb-2">
                             <h5 class="mb-3"><i class="bi bi-calendar-day"></i> {{ __('Ventas Diarias') }}</h5>
                             <div class="table-responsive">
                                 <table class="table table-striped table-hover">
                                     <thead class="table-dark">
                                         <tr>
                                             <th>{{ __('Fecha') }}</th>
-                                            <th class="text-center">{{ __('Transacciones') }}</th>
-                                            <th class="text-end">{{ __('Total Vendido') }}</th>
+                                            <th class="text-center">{{ __('Fichas') }}</th>
+                                            <th class="text-end">{{ __('Total') }}</th>
                                             <th class="text-end">{{ __('Ticket Medio') }}</th>
-                                            <th>{{ __('Progreso') }}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -75,25 +53,10 @@
                                                 {{ \Carbon\Carbon::parse($venta->fecha)->format('d/m/Y') }}
                                             </td>
                                             <td class="text-center">
-                                                <span class="badge bg-info">{{ $venta->num_transacciones }}</span>
+                                                {{ $venta->num_transacciones }}
                                             </td>
-                                            <td class="text-end fw-bold text-success">{{ number_format($venta->total_vendido, 2) }}€</td>
+                                            <td class="text-end fw-bold ">{{ number_format($venta->total_vendido, 2) }}€</td>
                                             <td class="text-end">{{ number_format($venta->ticket_medio, 2) }}€</td>
-                                            <td>
-                                                @php
-                                                    $porcentaje = ($venta->total_vendido / $maxVentas) * 100;
-                                                @endphp
-                                                <div class="progress" style="height: 20px;">
-                                                    <div class="progress-bar bg-primary" 
-                                                        role="progressbar" 
-                                                        style="width: {{ $porcentaje }}%" 
-                                                        aria-valuenow="{{ $porcentaje }}" 
-                                                        aria-valuemin="0" 
-                                                        aria-valuemax="100">
-                                                        {{ number_format($porcentaje, 0) }}%
-                                                    </div>
-                                                </div>
-                                            </td>
                                         </tr>
                                         @empty
                                         <tr>
@@ -107,19 +70,19 @@
                                 </table>
                             </div>
                         </div>
-
+</div>
+                    <div class="container-fluid">
                         <!-- Ventas por mes (últimos 12 meses) -->
-                        <div>
+                        <div class="row">
                             <h5 class="mb-3"><i class="bi bi-calendar3"></i> {{ __('Ventas Mensuales') }} ({{ __('Últimos 12 meses') }})</h5>
                             <div class="table-responsive">
                                 <table class="table table-striped table-hover">
                                     <thead class="table-dark">
                                         <tr>
                                             <th>{{ __('Mes') }}</th>
-                                            <th class="text-center">{{ __('Transacciones') }}</th>
-                                            <th class="text-end">{{ __('Total Vendido') }}</th>
+                                            <th class="text-center">{{ __('Fichas') }}</th>
+                                            <th class="text-end">{{ __('Total') }}</th>
                                             <th class="text-end">{{ __('Ticket Medio') }}</th>
-                                            <th>{{ __('Progreso') }}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -133,25 +96,10 @@
                                                 {{ $venta->mes_nombre }}
                                             </td>
                                             <td class="text-center">
-                                                <span class="badge bg-info">{{ $venta->num_transacciones }}</span>
+                                                {{ $venta->num_transacciones }}
                                             </td>
-                                            <td class="text-end fw-bold text-success">{{ number_format($venta->total_vendido, 2) }}€</td>
+                                            <td class="text-end fw-bold">{{ number_format($venta->total_vendido, 2) }}€</td>
                                             <td class="text-end">{{ number_format($venta->ticket_medio, 2) }}€</td>
-                                            <td>
-                                                @php
-                                                    $porcentaje = ($venta->total_vendido / $maxVentasMes) * 100;
-                                                @endphp
-                                                <div class="progress" style="height: 20px;">
-                                                    <div class="progress-bar bg-success" 
-                                                        role="progressbar" 
-                                                        style="width: {{ $porcentaje }}%" 
-                                                        aria-valuenow="{{ $porcentaje }}" 
-                                                        aria-valuemin="0" 
-                                                        aria-valuemax="100">
-                                                        {{ number_format($porcentaje, 0) }}%
-                                                    </div>
-                                                </div>
-                                            </td>
                                         </tr>
                                         @empty
                                         <tr>
@@ -167,16 +115,19 @@
                         </div>
                     </div>
                 </div>
-
-                <div class="card-footer">
-                    <div class="d-flex justify-content-center">
-                        <a href="{{ url()->previous() }}" class="btn btn-secondary">
-                            <i class="bi bi-chevron-left"></i> 
-                        </a>
-                    </div>
-                </div>
             </div>
         </div>
+    </div>
+</div>
+@endsection
+
+@section('footer')
+<div class="card-footer">
+    <div class="d-flex align-items-center justify-content-center">
+        
+        <button type="button" onclick="document.getElementById('form-filtro-fechas').submit();" class="btn btn-secondary borde-rojo fondo-rojo mx-1">
+            <i class="bi bi-search"></i>
+        </button>
     </div>
 </div>
 @endsection

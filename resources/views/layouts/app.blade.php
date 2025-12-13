@@ -699,10 +699,10 @@
                             
                             @if($modoOperacion !== 'mesas')
                                 <a class="dropdown-item {{ request()->routeIs('informes.index') || request()->routeIs('informes.balance') ? 'active' : '' }}" href="{{ url('/informes') }}">{{ __('BALANCE POR SOCIO') }}</a>
-                                <!-- <div class="dropdown-divider"></div>
+                                <div class="dropdown-divider"></div>
                                 <a class="dropdown-item {{ request()->routeIs('informes.ventas-productos-fichas') ? 'active' : '' }}" href="{{ route('informes.ventas-productos-fichas') }}">{{ strtoupper(__('Ventas por Producto')) }}</a>
                                 <a class="dropdown-item {{ request()->routeIs('informes.ventas-socios') ? 'active' : '' }}" href="{{ route('informes.ventas-socios') }}">{{ strtoupper(__('Ventas por Socio')) }}</a>
-                                <a class="dropdown-item {{ request()->routeIs('informes.evolucion-temporal') ? 'active' : '' }}" href="{{ route('informes.evolucion-temporal') }}">{{ strtoupper(__('Evolución Temporal')) }}</a> -->
+                                <a class="dropdown-item {{ request()->routeIs('informes.evolucion-temporal') ? 'active' : '' }}" href="{{ route('informes.evolucion-temporal') }}">{{ __('EVOLUCIÓN TEMPORAL') }}</a>
                             @else
                                 <a class="dropdown-item {{ request()->routeIs('informes.ventas-productos') ? 'active' : '' }}" href="{{ route('informes.ventas-productos') }}">{{ strtoupper(__('Ventas por Producto')) }}</a>
                                 <!-- <a class="dropdown-item {{ request()->routeIs('informes.ventas-camareros') ? 'active' : '' }}" href="{{ route('informes.ventas-camareros') }}">{{ strtoupper(__('Ventas por Camarero')) }}</a>

@@ -140,29 +140,23 @@
 </head>
 <body>
     <div class="header">
-        <h1>{{ $ajustes->nombre_sitio ?? $site->titulo ?? 'TICKET' }}</h1>
-        @if($ajustes->direccion)
-            <p>{{ $ajustes->direccion }}</p>
+        <h1>{{ $site->titulo ?? 'TICKET' }}</h1>
+        <h3>{{ siteName() }}</h3>
+        @if($site->direccion)
+            <p>{{ $site->direccion }}</p>
         @endif
-        @if($ajustes->telefono)
-            <p>Tel: {{ $ajustes->telefono }}</p>
+        @if($site->codigo_postal || $site->ciudad)
+            <p>{{ $site->codigo_postal }} {{ $site->ciudad }}</p>
         @endif
-        @if($ajustes->cif)
-            <p>CIF: {{ $ajustes->cif }}</p>
+        @if($site->telefono)
+            <p>Tel: {{ $site->telefono }}</p>
+        @endif
+        @if($site->cif)
+            <p>CIF: {{ $site->cif }}</p>
         @endif
     </div>
     
     <div class="info-section">
-        <div class="info-row">
-            <span class="info-label">
-                @if(isset($ficha->numero_mesa))
-                    MESA:
-                @else
-                    FICHA:
-                @endif
-            </span>
-            <span>{{ $ficha->numero_mesa ?? $ficha->descripcion ?? $ficha->uuid }}</span>
-        </div>
         <div class="info-row">
             <span class="info-label">FECHA:</span>
             <span>{{ $ficha->hora_cierre ? $ficha->hora_cierre->format('d/m/Y H:i') : now()->format('d/m/Y H:i') }}</span>
@@ -200,40 +194,20 @@
         </div>
         @endforeach
     </div>
-    
-    <div class="separator"></div>
-    
+        
     <div class="totals-section">
-        <div class="total-row">
-            <span class="total-label">Subtotal (Base):</span>
-            <span class="total-value">{{ number_format($subtotal, 2, ',', '.') }} €</span>
-        </div>
-        <div class="total-row">
-            <span class="total-label">IVA:</span>
-            <span class="total-value">{{ number_format($totalIva, 2, ',', '.') }} €</span>
-        </div>
         <div class="total-row grand-total">
             <span class="total-label">TOTAL:</span>
             <span class="total-value">{{ number_format($total, 2, ',', '.') }} €</span>
         </div>
     </div>
     
-    @if(count($ivaDesglose) > 0)
-    <div class="iva-desglose">
-        <div class="iva-desglose-title">Desglose IVA:</div>
-        @foreach($ivaDesglose as $iva)
-        <div class="total-row">
-            <span class="total-label">IVA {{ number_format($iva['porcentaje'], 0) }}%: Base {{ number_format($iva['base'], 2, ',', '.') }} €</span>
-            <span class="total-value">{{ number_format($iva['cuota'], 2, ',', '.') }} €</span>
-        </div>
-        @endforeach
-    </div>
-    @endif
+    
     
     <div class="footer">
         <p>¡GRACIAS POR SU VISITA!</p>
         <p>Este documento no tiene validez fiscal</p>
-        <p style="margin-top: 3px; font-size: 8px;">{{ now()->format('d/m/Y H:i:s') }}</p>
+        <p style="margin-top: 3px; font-size: 8px;">{{ __('Generado el') }} {{ now()->format('d/m/Y H:i') }}</p>
     </div>
 </body>
 </html>

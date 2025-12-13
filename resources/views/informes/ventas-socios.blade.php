@@ -11,107 +11,44 @@
 
                 <div class="card-body overflow-auto flex-fill">
                     <div class="container-fluid">
+                       <div class="row col-12"> 
                         <!-- Filtros de fecha -->
-                        <form method="GET" action="{{ route('informes.ventas-socios') }}" class="mb-4">
+                        <form id="form-filtro-fechas" method="GET" action="{{ route('informes.ventas-socios') }}" class="mb-4">
                             <div class="row g-3">
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <label for="fecha_inicial" class="form-label fw-bold">{{ __('Fecha inicial') }}</label>
                                     <input type="date" class="form-control" id="fecha_inicial" name="fecha_inicial" value="{{ $fechaInicial }}" required>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <label for="fecha_final" class="form-label fw-bold">{{ __('Fecha final') }}</label>
                                     <input type="date" class="form-control" id="fecha_final" name="fecha_final" value="{{ $fechaFinal }}" required>
                                 </div>
-                                <div class="col-md-4 d-flex align-items-end">
-                                    <button type="submit" class="btn btn-primary w-100">
-                                        <i class="bi bi-search"></i> {{ __('Buscar') }}
-                                    </button>
-                                </div>
                             </div>
                         </form>
-
-                        <!-- Resumen -->
-                        <div class="row mb-4">
-                            <div class="col-md-4">
-                                <div class="card bg-primary text-white">
-                                    <div class="card-body">
-                                        <h6 class="card-title">{{ __('Total Facturado') }}</h6>
-                                        <h3 class="mb-0">{{ number_format($totalGeneral, 2) }}€</h3>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="card bg-success text-white">
-                                    <div class="card-body">
-                                        <h6 class="card-title">{{ __('Total Compras') }}</h6>
-                                        <h3 class="mb-0">{{ $comprasTotal }}</h3>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="card bg-info text-white">
-                                    <div class="card-body">
-                                        <h6 class="card-title">{{ __('Ticket Medio') }}</h6>
-                                        <h3 class="mb-0">{{ $comprasTotal > 0 ? number_format($totalGeneral / $comprasTotal, 2) : '0.00' }}€</h3>
-                                    </div>
-                                </div>
-                            </div>
+</div>
                         </div>
-
+                    <div class="container-fluid">
+                        <div class="row g-2 mb-3">
                         <!-- Tabla de socios -->
                         <div class="table-responsive">
                             <table class="table table-striped table-hover">
                                 <thead class="table-dark">
                                     <tr>
-                                        <th>{{ __('Ranking') }}</th>
                                         <th>{{ __('Socio') }}</th>
-                                        <th class="text-center">{{ __('Total Compras') }}</th>
-                                        <th class="text-end">{{ __('Total Gastado') }}</th>
+                                        <th class="text-center">{{ __('Nº Fichas') }}</th>
+                                        <th class="text-end">{{ __('Total') }}</th>
                                         <th class="text-end">{{ __('Ticket Medio') }}</th>
-                                        <th>{{ __('% del Total') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @forelse($ventasSocios as $index => $socio)
                                     <tr>
-                                        <td>
-                                            @if($index === 0)
-                                                <span class="badge fs-6" style="background: linear-gradient(135deg, #FFD700, #FFA500);">
-                                                    <i class="bi bi-award-fill"></i> #1
-                                                </span>
-                                            @elseif($index === 1)
-                                                <span class="badge fs-6" style="background: linear-gradient(135deg, #C0C0C0, #A8A8A8);">
-                                                    <i class="bi bi-award-fill"></i> #2
-                                                </span>
-                                            @elseif($index === 2)
-                                                <span class="badge fs-6" style="background: linear-gradient(135deg, #CD7F32, #8B4513);">
-                                                    <i class="bi bi-award-fill"></i> #3
-                                                </span>
-                                            @else
-                                                <span class="badge bg-secondary fs-6">#{{ $index + 1 }}</span>
-                                            @endif
-                                        </td>
                                         <td class="fw-bold">{{ $socio->socio }}</td>
                                         <td class="text-center">
-                                            <span class="badge bg-info fs-6">{{ $socio->total_compras }}</span>
+                                            {{ $socio->total_compras }}
                                         </td>
-                                        <td class="text-end fw-bold text-success">{{ number_format($socio->total_gastado, 2) }}€</td>
+                                        <td class="text-end fw-bold">{{ number_format($socio->total_gastado, 2) }}€</td>
                                         <td class="text-end">{{ number_format($socio->ticket_medio, 2) }}€</td>
-                                        <td>
-                                            @php
-                                                $porcentaje = $totalGeneral > 0 ? ($socio->total_gastado / $totalGeneral) * 100 : 0;
-                                                $colorClass = $index === 0 ? 'bg-warning' : ($index === 1 ? 'bg-secondary' : 'bg-success');
-                                            @endphp
-                                            <div class="progress" style="height: 25px;">
-                                                <div class="progress-bar {{ $colorClass }}" role="progressbar" 
-                                                     style="width: {{ $porcentaje }}%" 
-                                                     aria-valuenow="{{ $porcentaje }}" 
-                                                     aria-valuemin="0" 
-                                                     aria-valuemax="100">
-                                                    {{ number_format($porcentaje, 1) }}%
-                                                </div>
-                                            </div>
-                                        </td>
                                     </tr>
                                     @empty
                                     <tr>
@@ -124,18 +61,21 @@
                                 </tbody>
                             </table>
                         </div>
-                    </div>
-                </div>
-
-                <div class="card-footer">
-                    <div class="d-flex justify-content-center">
-                        <a href="{{ url()->previous() }}" class="btn btn-secondary">
-                            <i class="bi bi-chevron-left"></i> 
-                        </a>
+</div>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
+</div>
+@endsection
+
+@section('footer')
+<div class="card-footer">
+    <div class="d-flex align-items-center justify-content-center">
+        <button type="button" onclick="document.getElementById('form-filtro-fechas').submit();" class="btn btn-secondary borde-rojo fondo-rojo mx-1">
+            <i class="bi bi-search"></i>
+        </button>
     </div>
 </div>
 @endsection
