@@ -840,7 +840,12 @@
                 });
                 if (token) {
                     console.log("TOKEN:", token);
+                    // Solo guardar si el usuario está autenticado
+                    @auth
                     await saveTokenToServer(token);
+                    @else
+                    console.log("Usuario no autenticado, token no guardado");
+                    @endauth
                 } // Recibir notificaciones en primer plano 
                 onMessage(messaging, async (payload) => {
                         console.log("Mensaje en foreground:", payload);
@@ -871,17 +876,28 @@
                         });
                 }
                 async function saveTokenToServer(token) {
-                        await fetch('/api/save-fcm-token', {
+                    try {
+                        const response = await fetch('/save-fcm-token', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
+                                'Accept': 'application/json',
                                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
                             },
-                            body: JSON.stringify({
-                                token
-                            })
+                            credentials: 'include',
+                            body: JSON.stringify({ token })
                         });
-                    } 
+                        
+                        const data = await response.json();
+                        if (response.ok) {
+                            console.log('✅ Token FCM guardado correctamente:', data);
+                        } else {
+                            console.error('❌ Error al guardar token FCM:', data);
+                        }
+                    } catch (error) {
+                        console.error('❌ Error al enviar token FCM:', error);
+                    }
+                } 
           </script> 
                 @endif
 

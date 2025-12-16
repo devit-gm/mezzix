@@ -348,27 +348,33 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         // Usar ajustes cacheados si están disponibles
         $ajustes = app()->has('ajustes') ? app('ajustes') : Ajustes::first();
         
+        // Validar que ajustes existe
+        if (!$ajustes) {
+            Log::warning('Ajustes no encontrado en ObtenerImporteFicha', ['ficha_uuid' => $ficha->uuid]);
+            $ajustes = new Ajustes(); // Crear objeto vacío para evitar errores
+        }
+        
         // Usar sum() en lugar de loops para mejor rendimiento
         $precio = FichaProducto::where('id_ficha', $ficha->uuid)->sum('precio');
         $precio += FichaServicio::where('id_ficha', $ficha->uuid)->sum('precio');
         $precio += FichaGasto::where('id_ficha', $ficha->uuid)->sum('precio');
         
         // Solo procesar invitados si es necesario
-        if ($sumarInvitados) {
+        if ($sumarInvitados && $ajustes->uuid) {
             $usuarios = FichaUsuario::where('id_ficha', $ficha->uuid)->get(['invitados']);
             foreach ($usuarios as $usuario) {
                 $num_invitados = $usuario->invitados;
-                if ($num_invitados > $ajustes->max_invitados_cobrar) {
-                    $num_invitados = $ajustes->max_invitados_cobrar;
+                if ($num_invitados > ($ajustes->max_invitados_cobrar ?? 0)) {
+                    $num_invitados = $ajustes->max_invitados_cobrar ?? 0;
                 }
-                if ($ajustes->primer_invitado_gratis && $num_invitados > 0) {
+                if (($ajustes->primer_invitado_gratis ?? false) && $num_invitados > 0) {
                     $num_invitados--;
                 }
-                $precio += $num_invitados * $ajustes->precio_invitado;
+                $precio += $num_invitados * ($ajustes->precio_invitado ?? 0);
             }
         }
         
-        if ($ajustes->activar_invitados_grupo && $ficha->invitados_grupo > 0) {
+        if (($ajustes->activar_invitados_grupo ?? false) && $ficha->invitados_grupo > 0) {
             $precio += $ficha->invitados_grupo;
         }
         

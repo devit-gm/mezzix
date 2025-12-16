@@ -172,10 +172,6 @@ class VerificarReservasProximas extends Command
                     ->where('modo', 'ficha')
                     ->where('tipo', 4) // Solo tipo evento
                     ->whereDate('fecha', $fechaCierre)
-                    ->where(function($query) {
-                        $query->whereNull('notificado_recordatorio_evento')
-                              ->orWhere('notificado_recordatorio_evento', false);
-                    })
                     ->get();
 
                 if ($eventos->isEmpty()) {
@@ -202,8 +198,8 @@ class VerificarReservasProximas extends Command
                                 Log::error("Error al notificar usuario #{$usuario->id} en evento #{$evento->uuid} en sitio {$sitio->nombre}: " . $e->getMessage());
                             }
                         }
-                        $evento->update(['notificado_recordatorio_evento' => true]);
-                        $this->line("      ✅ Evento marcado como notificado");
+                        // Log: Evento procesado (no marcamos columna que no existe)
+                        $this->line("      ✅ Notificaciones enviadas para evento");
                     }
                 }
             }
