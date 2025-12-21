@@ -62,6 +62,10 @@ Route::middleware(['detect.site', 'auth'])->group(function () {
             return redirect()->route('mesas.index');
         }
         
+        if ($modoOperacion === 'agencia_eventos') {
+            return redirect()->route('eventos-publicos.index');
+        }
+        
         return app(FichasController::class)->index();
     })->name('home');
     
@@ -76,6 +80,10 @@ Route::middleware(['detect.site', 'auth'])->group(function () {
         
         if ($modoOperacion === 'mesas') {
             return redirect()->route('mesas.index');
+        }
+        
+        if ($modoOperacion === 'agencia_eventos') {
+            return redirect()->route('eventos-publicos.index');
         }
         
         return app(FichasController::class)->index();
@@ -143,6 +151,22 @@ Route::middleware(['detect.site', 'auth'])->group(function () {
     Route::post('/fichas/{mesaId}/cerrar', [FichasController::class, 'cerrarMesa'])->name('fichas.cerrar');
     Route::post('/fichas/{mesaId}/liberar', [FichasController::class, 'liberarMesa'])->name('fichas.liberar');
     Route::get('/fichas/{uuid}/enviar-cocina', [FichasController::class, 'enviarCocina'])->name('fichas.enviarCocina');
+
+    // Rutas para eventos públicos (modo agencia_eventos)
+    Route::get('/eventos', [App\Http\Controllers\EventosPublicosController::class, 'index'])->name('eventos-publicos.index');
+    Route::get('/eventos/{uuid}', [App\Http\Controllers\EventosPublicosController::class, 'show'])->name('eventos-publicos.show');
+    Route::post('/eventos/{uuid}/inscribirse', [App\Http\Controllers\EventosPublicosController::class, 'inscribirse'])->name('eventos-publicos.inscribirse');
+    Route::delete('/eventos/{uuid}/cancelar', [App\Http\Controllers\EventosPublicosController::class, 'cancelarInscripcion'])->name('eventos-publicos.cancelar');
+    Route::get('/mis-inscripciones', [App\Http\Controllers\EventosPublicosController::class, 'misInscripciones'])->name('eventos-publicos.mis-inscripciones');
+    
+    // Rutas de gestión de eventos para administradores (modo agencia_eventos)
+    Route::get('/eventos/gestion/lista', [FichasController::class, 'index'])->name('eventos.gestion.index');
+    Route::put('/eventos/gestion/lista', [FichasController::class, 'index'])->name('eventos.gestion.index.filter');
+    Route::get('/eventos/gestion/crear', [FichasController::class, 'create'])->name('eventos.gestion.create');
+    Route::post('/eventos/gestion', [FichasController::class, 'store'])->name('eventos.gestion.store');
+    Route::get('/eventos/gestion/{uuid}/editar', [FichasController::class, 'edit'])->name('eventos.gestion.edit');
+    Route::put('/eventos/gestion/{uuid}', [FichasController::class, 'update'])->name('eventos.gestion.update');
+    Route::delete('/eventos/gestion/{uuid}', [FichasController::class, 'destroy'])->name('eventos.gestion.destroy');
 
     // Rutas para sistema de mesas
     Route::get('/mesas', [FichasController::class, 'indexMesas'])->name('mesas.index');

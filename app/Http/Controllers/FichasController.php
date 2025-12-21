@@ -61,6 +61,14 @@ class FichasController extends Controller
             return redirect()->route('mesas.index');
         }
 
+        // Redirigir a eventos/gestion si el modo operación es 'agencia_eventos' 
+        // pero solo si no estamos ya en esa ruta
+        if ($ajustes && $ajustes->modo_operacion === 'agencia_eventos') {
+            if (!$request->is('eventos/gestion/*') && !$request->is('eventos/gestion')) {
+                return redirect()->route('eventos.gestion.index');
+            }
+        }
+
 // Consulta principal (solo una)
 $query = Ficha::query()
     ->with(['usuario', 'inscritos']);   // 🔥 Eager loading
@@ -109,7 +117,11 @@ foreach ($fichas as $ficha) {
     $fecha = Carbon::parse($ficha->fecha);
     $ficha->mes = substr($fecha->translatedFormat('F'), 0, 3);
 
-    $ficha->precio = $this->ObtenerImporteFicha($ficha);
+    // Solo calcular el precio si NO es un evento de agencia (tipo 4 en modo agencia_eventos)
+    // En eventos de agencia, el precio viene del campo precio de la tabla
+    if (!($ajustes && $ajustes->modo_operacion === 'agencia_eventos' && $ficha->tipo == 4)) {
+        $ficha->precio = $this->ObtenerImporteFicha($ficha);
+    }
 
     // Borrable
     $esAdmin = $user && $user->role_id == 1;
@@ -125,6 +137,11 @@ foreach ($fichas as $ficha) {
 
     $ficha->total_comensales = $usuariosFicha->sum(fn($u) => 1 + ($u->invitados ?? 0) + ($u->ninos ?? 0));
     $ficha->total_ninos      = $usuariosFicha->sum(fn($u) => $u->ninos ?? 0);
+    
+    // Agregar información de si el usuario está apuntado (para eventos tipo 4)
+    if ($ficha->tipo == 4) {
+        $ficha->apuntado = $ficha->inscritos->where('user_id', Auth::id())->first();
+    }
 }
 
 // Si son fichas cerradas, limitar a 20 más recientes después del filtro de permisos
@@ -134,7 +151,10 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
 
         $errors = new \Illuminate\Support\MessageBag();
         if ($fichas == null || count($fichas) == 0) {
-            $errors->add('msg', __('No se encontraron fichas para mostrar.'));
+            $mensajeError = ($ajustes && $ajustes->modo_operacion === 'agencia_eventos') 
+                ? __('No se encontraron eventos para mostrar.')
+                : __('No se encontraron fichas para mostrar.');
+            $errors->add('msg', $mensajeError);
             return view('fichas.index', compact('fichas', 'errors', 'request', 'ajustes'));
         } else {
             return view('fichas.index', compact('fichas', 'request', 'ajustes'));
@@ -148,7 +168,8 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         $request->validate([
             'descripcion' => 'max:255',
             'fecha' => 'required|date',
-            'tipo' => 'required'
+            'tipo' => 'required',
+            'foto_evento' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048'
         ]);
 
         $descripcion = '';
@@ -156,6 +177,12 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
             $descripcion = '';
         } else {
             $descripcion = $request->descripcion;
+        }
+
+        // Manejar subida de foto del evento
+        $fotoEvento = null;
+        if ($request->hasFile('foto_evento')) {
+            $fotoEvento = $request->file('foto_evento')->store('eventos', 'public');
         }
 
         // ...
@@ -171,8 +198,20 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
             'fecha' => $request->fecha,
             'hora' => $request->hora,
             'menu' => $request->menu,
-            'responsables' => $request->responsables
+            'responsables' => $request->responsables,
+            'foto_evento' => $fotoEvento,
+            'descripcion_evento' => $request->descripcion_evento,
+            'ubicacion_evento' => $request->ubicacion_evento,
+            'aforo_maximo' => $request->aforo_maximo,
+            'inscritos_actuales' => 0
         ]);
+        
+        // Si es un evento (tipo 4) y estamos en modo agencia, notificar a usuarios
+        $ajustes = \DB::connection('site')->table('ajustes')->first();
+        if ($request->tipo == 4 && $ajustes && $ajustes->modo_operacion === 'agencia_eventos') {
+            $this->notificarNuevoEvento($ficha);
+        }
+        
         if ($request->tipo == 1 || $request->tipo == 2) {
             return redirect()->route('fichas.familias', ['uuid' => $ficha->uuid]);
         } else {
@@ -234,7 +273,8 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         $request->validate([
             'descripcion' => 'max:255',
             'fecha' => 'required|date',
-            'tipo' => 'required'
+            'tipo' => 'required',
+            'foto_evento' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048'
         ]);
         $ficha = Ficha::find($uuid);
 
@@ -245,18 +285,38 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         }
         $descripcion = $ficha->descripcion;
 
+        // Manejar subida de nueva foto del evento
+        if ($request->hasFile('foto_evento')) {
+            // Eliminar foto anterior si existe
+            if ($ficha->foto_evento && \Storage::disk('public')->exists($ficha->foto_evento)) {
+                \Storage::disk('public')->delete($ficha->foto_evento);
+            }
+            $ficha->foto_evento = $request->file('foto_evento')->store('eventos', 'public');
+        }
+
         $ficha->update([
             'descripcion' => $descripcion,
             'user_id' => $request->user_id,
-            'precio' =>  $this->ObtenerImporteFicha($ficha),
+            'precio' =>  $request->precio ?? $this->ObtenerImporteFicha($ficha),
             'invitados_grupo' => $request->invitados_grupo,
             'estado' => $request->estado,
             'tipo' => $request->tipo,
             'fecha' => $request->fecha,
             'hora' => $request->hora,
             'menu' => $request->menu,
-            'responsables' => $request->responsables
+            'responsables' => $request->responsables,
+            'foto_evento' => $ficha->foto_evento,
+            'descripcion_evento' => $request->descripcion_evento,
+            'ubicacion_evento' => $request->ubicacion_evento,
+            'aforo_maximo' => $request->aforo_maximo
         ]);
+        
+        $ajustes = \DB::connection('site')->table('ajustes')->first();
+        if ($ajustes && $ajustes->modo_operacion === 'agencia_eventos') {
+            return redirect()->route('eventos.gestion.index')
+                ->with('success', __('Evento actualizado con éxito.'));
+        }
+        
         return redirect()->route('fichas.index')
             ->with('success', __('Ficha actualizada con éxito.'));
     }
@@ -295,7 +355,8 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         $userId = Auth::id();
         $userTimezone = 'Europe/Madrid';
         $currentDateTime = Carbon::now($userTimezone);
-        return view('fichas.create', compact('userId', 'currentDateTime'));
+        $ajustes = app('ajustes');
+        return view('fichas.create', compact('userId', 'currentDateTime', 'ajustes'));
     }
 
     public function download(string $uuid)
@@ -330,7 +391,16 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
     public function edit(string $uuid)
     {
         $ficha = Ficha::where('uuid', $uuid)->firstOrFail();
-        $ficha->precio = $this->ObtenerImporteFicha($ficha);
+        
+        // Obtener ajustes para verificar el modo
+        $ajustes = app('ajustes');
+        
+        // Solo calcular el precio si NO estamos en modo agencia de eventos
+        // En modo agencia, el precio viene directamente del campo precio de la tabla
+        if ($ajustes->modo_operacion !== 'agencia_eventos' || $ficha->tipo != 4) {
+            $ficha->precio = $this->ObtenerImporteFicha($ficha);
+        }
+        
         $fechaCambiada = Carbon::parse($ficha->fecha)->todateString();
         if ($ficha->user_id == Auth::id() || (Auth::check() && Auth::user()->role_id == 1) || FichaUsuario::where('id_ficha', $ficha->uuid)->where('user_id', Auth::id())->exists()) {
             $ficha->borrable = true;
@@ -340,7 +410,7 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
 
         $userTimezone = 'Europe/Madrid';
         $currentDateTime = Carbon::now($userTimezone);
-        return view('fichas.edit', compact('ficha', 'fechaCambiada', 'currentDateTime'));
+        return view('fichas.edit', compact('ficha', 'fechaCambiada', 'currentDateTime', 'ajustes'));
     }
 
     private function ObtenerImporteFicha($ficha, $sumarInvitados = false)
@@ -552,14 +622,30 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
      
         $ficha->precio = $this->ObtenerImporteFicha($ficha);
         $site = app('site');
-        //Si es una ficha individual sólo mostramos al usuario activo
-        if ($ficha->tipo == 1) {
+        
+        // Si es modo agencia de eventos (tipo 4), solo mostrar usuarios inscritos
+        $esAgenciaEventos = ($ajustes->modo_operacion === 'agencia_eventos' && $ficha->tipo == 4);
+        
+        if ($esAgenciaEventos) {
+            // En modo agencia, solo mostrar usuarios que están en fichas_usuarios
+            $usuariosInscritos = DB::connection('site')
+                ->table('fichas_usuarios')
+                ->where('id_ficha', $uuid)
+                ->pluck('user_id');
+            
+            $usuariosFicha = User::where('site_id', $site->id)
+                ->whereIn('id', $usuariosInscritos)
+                ->orderBy('id')
+                ->get();
+        } elseif ($ficha->tipo == 1) {
+            //Si es una ficha individual sólo mostramos al usuario activo
             $usuariosFicha = User::where('site_id', $site->id)->where('id', $ficha->user_id)->get();
         } else {
             $usuariosFicha = User::where('site_id', $site->id)->orderBy('id')->get();
         }
+        
         //Si la ficha está cerrada (estado = 1) solo mostramos los usuarios que están en FichaUsuario
-        if ($ficha->estado == 1) {
+        if ($ficha->estado == 1 && !$esAgenciaEventos) {
             $usuariosFicha = [];
             //Buscar los usuarios que están dentro de FichaUsuario
             $usuarios = User::where('site_id', $site->id)->orderBy('id')->get();
@@ -587,6 +673,7 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
                 $usuarioFicha->marcado = true;
                 $usuarioFicha->invitados = $fichaUsuario->invitados;
                 $usuarioFicha->ninos = $fichaUsuario->ninos;
+                $usuarioFicha->created_at = $fichaUsuario->created_at; // Fecha de inscripción
                 $total_comensales += $fichaUsuario->invitados;
                 $total_comensales += $fichaUsuario->ninos;
                 $total_comensales++;
@@ -2358,6 +2445,37 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Notifica a todos los usuarios básicos sobre un nuevo evento
+     */
+    private function notificarNuevoEvento($ficha)
+    {
+        try {
+            $firebase = app(\App\Services\FirebaseService::class);
+            
+            // Obtener todos los usuarios básicos (role_id >= 4) con token de Firebase
+            $usuariosBasicos = User::where('site_id', app('site')->id)
+                ->where('role_id', '>=', 4)
+                ->whereNotNull('fcm_token')
+                ->get();
+            
+            foreach ($usuariosBasicos as $usuario) {
+                $firebase->sendNotification(
+                    $usuario->fcm_token,
+                    __('Nuevo evento disponible'),
+                    __('Se ha creado un nuevo evento: :evento', ['evento' => $ficha->descripcion]),
+                    [
+                        'tipo' => 'evento',
+                        'evento_id' => $ficha->uuid
+                    ]
+                );
+            }
+        } catch (\Exception $e) {
+            // Log del error pero no interrumpir el flujo de creación del evento
+            \Log::error('Error enviando notificaciones de nuevo evento: ' . $e->getMessage());
         }
     }
 }

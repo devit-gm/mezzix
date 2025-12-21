@@ -98,7 +98,7 @@ class NotificarOrganizadorEvento implements ShouldQueue
             $verbo = $this->accion === 'inscripcion' ? 'se ha apuntado a' : 'canceló su asistencia a';
             
             $titulo = "Actualización de evento";
-            $mensaje = "{$icono} {$usuario->name} {$verbo} {$ficha->descripcion}";
+            $mensaje = "{$icono} {$usuario->name} {$verbo} {$ficha->descripcion}\n\nTotal de asistentes: {$totalInscritos}";
             $detalle = "Total de asistentes: {$totalInscritos}";
 
             // Enviar notificación push vía Firebase

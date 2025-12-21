@@ -45,6 +45,7 @@
                                                     <select name="modo_operacion" id="modo_operacion" class="form-select form-select-sm" aria-label=".form-select-sm example" required>
                                                         <option value="fichas" @if( $ajustes->modo_operacion == 'fichas' ) selected @endif>{{ __('Fichas de Eventos') }}</option>
                                                         <option value="mesas" @if( $ajustes->modo_operacion == 'mesas' ) selected @endif>{{ __('Mesas de Restaurante') }}</option>
+                                                        <option value="agencia_eventos" @if( $ajustes->modo_operacion == 'agencia_eventos' ) selected @endif>{{ __('Agencia de Eventos') }}</option>
                                                     </select>
                                                     <small class="form-text text-muted">{{ __('Selecciona si trabajas con fichas de eventos o mesas de restaurante') }}</small>
                                                 </div>
@@ -124,6 +125,7 @@
                                     @endif
 
                                     <!-- Configuración de Productos y Stock -->
+                                    @if($ajustes->modo_operacion != 'agencia_eventos')
                                     <div class="mb-4">
                                         <h5 class="mb-3 d-flex align-items-center" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#collapseProductos" aria-expanded="false" aria-controls="collapseProductos">
                                             <i class="bi bi-box-seam me-2"></i> {{ __('Configuración de Productos y Stock') }}
@@ -165,6 +167,7 @@
                                             </div>
                                         </div>
                                     </div>
+                                    @endif
 
                                     <!-- Configuración de Facturación y Eventos -->
                                     @if($ajustes->modo_operacion == 'fichas')

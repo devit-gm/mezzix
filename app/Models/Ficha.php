@@ -35,7 +35,12 @@ class Ficha extends Model
         'ultimo_camarero_id',
         'importe',
         'nombre',
-        'observaciones'
+        'observaciones',
+        'descripcion_evento',
+        'foto_evento',
+        'ubicacion_evento',
+        'aforo_maximo',
+        'inscritos_actuales'
     ];
 
     protected $casts = [

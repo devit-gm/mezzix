@@ -29,7 +29,7 @@ class AjustesController extends Controller
             'notificar_stock_bajo' => 'nullable|boolean',
             'facturar_ficha_automaticamente' => 'nullable|boolean',
             'permitir_lectura_codigo_barras' => 'nullable|boolean',
-            'modo_operacion' => 'nullable|in:fichas,mesas',
+            'modo_operacion' => 'nullable|in:fichas,mesas,agencia_eventos',
             'mostrar_usuarios' => 'nullable|boolean',
             'mostrar_gastos' => 'nullable|boolean',
             'mostrar_compras' => 'nullable|boolean',

@@ -8,10 +8,11 @@
 
 ## 📋 Descripción
 
-**MEZZIX** es una aplicación web full-stack desarrollada en Laravel que proporciona dos modos de operación distintos:
+**MEZZIX** es una aplicación web full-stack desarrollada en Laravel que proporciona tres modos de operación distintos:
 
 - **Modo Fichas**: Sistema de gestión de eventos con control de invitados, gastos y compras
 - **Modo Mesas**: Sistema POS para restaurantes con gestión de mesas, camareros y comandas en tiempo real
+- **Modo Agencia de Eventos**: Plataforma de inscripción a eventos públicos con gestión de capacidad y notificaciones
 
 ## ✨ Características Principales
 
@@ -58,6 +59,41 @@
   - Registro de compras con recibos
   - Control de inventario automático
   - Base de datos por sitio (multi-tenant)
+
+### 🎉 Modo Agencia de Eventos
+
+- **Gestión de Eventos Públicos**
+  - Sistema de roles: solo administradores pueden crear eventos
+  - Usuarios normales pueden inscribirse a eventos disponibles
+  - Campos específicos: descripción, foto, ubicación, precio, aforo máximo
+  - Control de inscritos actuales vs capacidad máxima
+
+- **Sistema de Inscripciones**
+  - Inscripción/cancelación con un clic
+  - Validación de plazas disponibles
+  - Contador en tiempo real de inscritos
+  - Indicador visual de inscripción en catálogo (check verde)
+  - Lista de inscritos con fecha de inscripción
+
+- **Catálogo de Eventos**
+  - Vista unificada para todos los usuarios
+  - Información detallada: fecha, hora, ubicación, precio, aforo
+  - Botón de inscripción/cancelación para usuarios básicos
+  - Botones de edición/eliminación solo para administradores
+  - Filtrado de eventos activos/finalizados
+
+- **Notificaciones Push (Firebase)**
+  - Notificación al usuario al inscribirse/cancelar
+  - Notificación al creador del evento con ocupación actual (ej: "15/20 asistentes")
+  - Notificación a todos los usuarios cuando se crea un nuevo evento
+  - Soporte foreground y background
+  - Click en notificación lleva al detalle del evento
+
+- **Permisos y Seguridad**
+  - Usuarios básicos solo ven y se inscriben a eventos
+  - Solo administradores pueden crear/editar/eliminar eventos
+  - Creadores de eventos pueden gestionar sus propios eventos
+  - Control de permisos en botones y rutas
 
 ### 🍽️ Modo Mesas (Restaurante)
 

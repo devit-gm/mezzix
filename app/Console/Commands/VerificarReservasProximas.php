@@ -169,7 +169,10 @@ class VerificarReservasProximas extends Command
                 $this->info("   📅 Buscando eventos cuyo plazo de inscripción termina el: {$fechaCierre}");
 
                 $eventos = \App\Models\Ficha::on('site')
-                    ->where('modo', 'ficha')
+                    ->where(function($query) {
+                        $query->where('modo', 'ficha')
+                              ->orWhere('modo', 'agencia_eventos');
+                    })
                     ->where('tipo', 4) // Solo tipo evento
                     ->whereDate('fecha', $fechaCierre)
                     ->get();

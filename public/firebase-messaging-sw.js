@@ -68,7 +68,14 @@ messaging.onBackgroundMessage((payload) => {
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
 
-    const urlToOpen = event.notification.data?.url || '/';
+    let urlToOpen = '/';
+
+    // Si es notificación de evento, ir al detalle
+    if (event.notification.data?.tipo === 'evento' && event.notification.data?.evento_id) {
+        urlToOpen = '/eventos-publicos/' + event.notification.data.evento_id;
+    } else if (event.notification.data?.url) {
+        urlToOpen = event.notification.data.url;
+    }
 
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
