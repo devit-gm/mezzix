@@ -846,9 +846,60 @@
                     navigator.serviceWorker.register('/firebase-messaging-sw.js').then(registration => {
                         console.log('SW Firebase registrado:', registration.scope);
                         requestNotificationPermission();
+                        verificarEstadoNotificaciones(); // Verificar al cargar
                     }).catch(error => console.log('Error SW:', error));
                 });
-            } async function requestNotificationPermission() {
+            }
+            
+            // Función para verificar el estado de las notificaciones y mostrar/ocultar botón
+            function verificarEstadoNotificaciones() {
+                const botonActivar = document.getElementById('btnActivarNotificaciones');
+                if (!botonActivar) return;
+                
+                if (!('Notification' in window)) {
+                    botonActivar.style.display = 'none';
+                    return;
+                }
+                
+                const permission = Notification.permission;
+                
+                if (permission === 'default') {
+                    // No ha dado permiso aún - mostrar botón
+                    botonActivar.style.display = 'flex';
+                } else {
+                    // Ya ha dado permiso (granted) o lo ha bloqueado (denied) - ocultar botón
+                    botonActivar.style.display = 'none';
+                }
+            }
+            
+            // Función para activar notificaciones desde el botón flotante
+            async function activarNotificacionesDesdeBoton() {
+                if (!('Notification' in window)) {
+                    alert('Este dispositivo no soporta notificaciones');
+                    return;
+                }
+                
+                const permission = await Notification.requestPermission();
+                
+                if (permission === 'granted') {
+                    await getFCMToken();
+                    verificarEstadoNotificaciones(); // Ocultar botón
+                    
+                    // Mostrar notificación de confirmación
+                    new Notification('¡Notificaciones activadas!', {
+                        body: 'Recibirás notificaciones sobre eventos y novedades',
+                        icon: window.PWA_ICON_PATH + '/icon-192x192.png'
+                    });
+                } else if (permission === 'denied') {
+                    alert('Has bloqueado las notificaciones. Ve a los ajustes de tu navegador para habilitarlas.');
+                    verificarEstadoNotificaciones(); // Ocultar botón
+                }
+            }
+            
+            // Verificar periódicamente el estado (por si cambia desde ajustes del navegador)
+            setInterval(verificarEstadoNotificaciones, 5000);
+            
+            async function requestNotificationPermission() {
             if (!('Notification' in window)) return;
             if (Notification.permission === 'granted') {
                 await getFCMToken();
@@ -979,6 +1030,13 @@
         <i class="bi bi-chat-dots-fill"></i>
     </button>
     @endif
+    
+    <!-- Botón flotante para activar notificaciones (inferior derecha) -->
+    @if((request()->secure() || str_contains(request()->getHost(), '127.0.0.1')) && !$esCocineroEnCocina)
+    <button id="btnActivarNotificaciones" class="btn-flotante-activar-notificaciones" onclick="activarNotificacionesDesdeBoton()" title="Activar notificaciones push" style="display: none;">
+        <i class="bi bi-bell-slash-fill"></i>
+    </button>
+    @endif
     @endauth
 
     <!-- Modal para enviar notificación -->
@@ -1057,10 +1115,59 @@
             transform: scale(0.95);
         }
         
+        /* Botón flotante para activar notificaciones (inferior derecha) */
+        .btn-flotante-activar-notificaciones {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            animation: pulseNotification 2s infinite;
+        }
+        
+        .btn-flotante-activar-notificaciones:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+            background: linear-gradient(135deg, #ff9800 0%, #ffc107 100%);
+        }
+        
+        .btn-flotante-activar-notificaciones:active {
+            transform: scale(0.95);
+        }
+        
+        @keyframes pulseNotification {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+        
         @media (max-width: 768px) {
             .btn-flotante-notificacion {
                 bottom: 20px;
                 left: 20px;
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
+            
+            .btn-flotante-activar-notificaciones {
+                bottom: 20px;
+                right: 20px;
                 width: 50px;
                 height: 50px;
                 font-size: 20px;
