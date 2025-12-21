@@ -887,7 +887,7 @@
                     
                     // Mostrar notificación de confirmación
                     new Notification('¡Notificaciones activadas!', {
-                        body: 'Recibirás notificaciones sobre eventos y novedades',
+                        body: 'Recibirás notificaciones de actualizaciones y eventos importantes.',
                         icon: window.PWA_ICON_PATH + '/icon-192x192.png'
                     });
                 } else if (permission === 'denied') {
