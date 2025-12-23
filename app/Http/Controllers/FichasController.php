@@ -1015,10 +1015,10 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
     {
         $site = app('site');
         
-        // Obtener usuarios antes de la actualización (para detectar cambios)
+        // Obtener datos completos de usuarios antes de la actualización (para detectar cambios)
         $usuariosAntes = FichaUsuario::where('id_ficha', $uuid)
-            ->pluck('user_id')
-            ->toArray();
+            ->get()
+            ->keyBy('user_id');
         
         // Eliminar todos los usuarios actuales
         FichaUsuario::where('id_ficha', $uuid)->delete();
@@ -1036,7 +1036,10 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
                     'invitados' => $request->invitados[$idUsuario] ?? 0,
                     'ninos' => $request->ninos[$idUsuario] ?? 0
                 ]);
-                $usuariosDespues[] = $idUsuario;
+                $usuariosDespues[$idUsuario] = [
+                    'invitados' => $request->invitados[$idUsuario] ?? 0,
+                    'ninos' => $request->ninos[$idUsuario] ?? 0
+                ];
             }
         }
         
@@ -1044,17 +1047,34 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         $ficha = Ficha::find($uuid);
         if ($ficha && $ficha->tipo == 4) {
             // Usuarios añadidos (están en después pero no en antes)
-            $usuariosAnadidos = array_diff($usuariosDespues, $usuariosAntes);
+            $usuariosAnadidos = array_diff(array_keys($usuariosDespues), $usuariosAntes->pluck('user_id')->toArray());
             foreach ($usuariosAnadidos as $userId) {
                 \App\Jobs\NotificarOrganizadorEvento::dispatch($uuid, $userId, 'inscripcion')
                     ->afterCommit();
             }
             
             // Usuarios eliminados (están en antes pero no en después)
-            $usuariosEliminados = array_diff($usuariosAntes, $usuariosDespues);
+            $usuariosEliminados = array_diff($usuariosAntes->pluck('user_id')->toArray(), array_keys($usuariosDespues));
             foreach ($usuariosEliminados as $userId) {
                 \App\Jobs\NotificarOrganizadorEvento::dispatch($uuid, $userId, 'cancelacion')
                     ->afterCommit();
+            }
+            
+            // Usuarios que cambiaron número de invitados o niños
+            foreach ($usuariosDespues as $userId => $datosActuales) {
+                if ($usuariosAntes->has($userId)) {
+                    $datosAnteriores = $usuariosAntes->get($userId);
+                    $invitadosAntes = $datosAnteriores->invitados;
+                    $ninosAntes = $datosAnteriores->ninos;
+                    $invitadosDespues = $datosActuales['invitados'];
+                    $ninosDespues = $datosActuales['ninos'];
+                    
+                    // Si cambió el número de invitados o niños, enviar notificación
+                    if ($invitadosAntes != $invitadosDespues || $ninosAntes != $ninosDespues) {
+                        \App\Jobs\NotificarOrganizadorEvento::dispatch($uuid, $userId, 'actualizacion')
+                            ->afterCommit();
+                    }
+                }
             }
         }
         

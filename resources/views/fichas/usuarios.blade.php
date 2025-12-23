@@ -176,7 +176,7 @@
                             value="{{ $usuario->id }}"
                             
                             @if($usuario->marcado == 1) checked @endif
-                            @if($ficha->estado == 1 || !$puedeEditar) disabled @endif
+                            @if($ficha->estado == 1) disabled @endif
                         >
                     </div>
                 </td>
@@ -188,7 +188,7 @@
                             name="invitados[{{ $usuario->id }}]"
                             id="invitados[{{ $usuario->id }}]"
                             style="width: 60px; display: inline-block;"
-                            @if($ficha->estado == 1 || !$puedeEditar) disabled @endif>
+                            @if($ficha->estado == 1) disabled @endif>
                         @for ($i = 0; $i <= $ajustes->max_invitados_cobrar; $i++)
                             <option value="{{ $i }}" @if($usuario->invitados == $i) selected @endif>
                                 {{ $i }}
@@ -203,7 +203,7 @@
                             name="ninos[{{ $usuario->id }}]"
                             id="ninos[{{ $usuario->id }}]"
                             style="width: 60px; display: inline-block;"
-                            @if($ficha->estado == 1 || !$puedeEditar) disabled @endif>
+                            @if($ficha->estado == 1) disabled @endif>
                         @for ($i = 0; $i <= $ajustes->max_invitados_cobrar; $i++)
                             <option value="{{ $i }}" @if($usuario->ninos == $i) selected @endif>
                                 {{ $i }}

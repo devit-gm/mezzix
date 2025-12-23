@@ -90,16 +90,38 @@ class NotificarOrganizadorEvento implements ShouldQueue
                 return;
             }
 
-            // Contar total de inscritos
-            $totalInscritos = $ficha->inscritos()->count();
+            //Si el organizador es la misma persona que se apunta
+            //no se le notifica
+            if($organizador->id === $usuario->id){
+                Log::info('El organizador es el mismo usuario que se apunta/cancela, no se envía notificación', [
+                    'organizador_id' => $organizador->id,
+                    'usuario_id' => $usuario->id
+                ]);
+                return;
+            }
 
-            // Preparar mensaje
-            $icono = $this->accion === 'inscripcion' ? '✅' : '❌';
-            $verbo = $this->accion === 'inscripcion' ? 'se ha apuntado a' : 'canceló su asistencia a';
+            // Contar total de inscritos, pero sumando las columnas invitados y ninos de cada inscripción
+            $inscritos = $ficha->inscritos()->get();
+            $totalInscritos = $inscritos->sum(function ($inscrito) {
+                return 1 + $inscrito->invitados + $inscrito->ninos;
+            }); 
+
+            // Preparar mensaje según tipo de acción
+            if ($this->accion === 'inscripcion') {
+                $icono = '✅';
+                $verbo = 'se ha apuntado a';
+            } elseif ($this->accion === 'cancelacion') {
+                $icono = '❌';
+                $verbo = 'canceló su asistencia a';
+            } else {
+                // actualizacion
+                $icono = '🔄';
+                $verbo = 'actualizó su inscripción en';
+            }
             
             $titulo = "Actualización de evento";
-            $mensaje = "{$icono} {$usuario->name} {$verbo} {$ficha->descripcion}\n\nTotal de asistentes: {$totalInscritos}";
-            $detalle = "Total de asistentes: {$totalInscritos}";
+            $mensaje = "{$icono} {$usuario->name} {$verbo} {$ficha->descripcion}\n\nTotal asistentes: {$totalInscritos}";
+            $detalle = "Total asistentes: {$totalInscritos}";
 
             // Enviar notificación push vía Firebase
             if ($organizador->fcm_token) {
