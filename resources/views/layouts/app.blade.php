@@ -67,6 +67,37 @@
     @stack('styles')
     
     <style>
+        /* 🎄 Efecto de nieve navideño - Minimalista y elegante */
+        .snowflake {
+            position: fixed;
+            top: -10px;
+            z-index: 99999; /* Aumentado para estar por encima de modales y otros elementos */
+            pointer-events: none;
+            font-size: 1em;
+            animation: fall linear infinite;
+            text-shadow: 0 0 3px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Adaptar color según tema */
+        @media (prefers-color-scheme: dark) {
+            .snowflake {
+                color: rgba(255, 255, 255, 0.8);
+            }
+        }
+        
+        @media (prefers-color-scheme: light) {
+            .snowflake {
+                color: rgba(100, 150, 200, 0.7); /* Azul claro para modo claro */
+            }
+        }
+
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
         /* Estilos para el grid de mesas */
         .mesas-grid {
             display: grid;
@@ -720,6 +751,7 @@
                         </div>
                     </li>
                     @endif
+                    @endif
                     
                     @php
                         try {
@@ -731,12 +763,14 @@
                     @endphp
                     @if($modoOperacionInformes !== 'agencia_eventos')
                     <li class="nav-item dropdown">
-                        <a id="navbarDropdown" class="nav-link dropdown-toggle {{ request()->routeIs('informes.*') || request()->routeIs('facturacion.*') ? 'active' : '' }}" href="#" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
+                        <a id="navbarDropdownInformes" class="nav-link dropdown-toggle {{ request()->routeIs('informes.*') || request()->routeIs('facturacion.*') ? 'active' : '' }}" href="#" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
                             {{ __('INFORMES') }}
                         </a>
 
-                        <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                        <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownInformes">
+                            @if (Auth::user()->role_id < \App\Enums\Role::USUARIO_MESAS)
                             <a class="dropdown-item {{ request()->routeIs('facturacion.*') ? 'active' : '' }}" href="{{ url('/facturacion') }}">{{ __('FACTURACIÓN') }}</a>
+                            @endif
                             
                             @php
                                 try {
@@ -749,21 +783,26 @@
                             
                             @if($modoOperacion !== 'mesas')
                                 <a class="dropdown-item {{ request()->routeIs('informes.index') || request()->routeIs('informes.balance') ? 'active' : '' }}" href="{{ url('/informes') }}">{{ __('BALANCE POR SOCIO') }}</a>
+                                @if (Auth::user()->role_id < \App\Enums\Role::USUARIO_MESAS)
                                 <div class="dropdown-divider"></div>
                                 <a class="dropdown-item {{ request()->routeIs('informes.ventas-productos-fichas') ? 'active' : '' }}" href="{{ route('informes.ventas-productos-fichas') }}">{{ strtoupper(__('Ventas por Producto')) }}</a>
                                 <a class="dropdown-item {{ request()->routeIs('informes.ventas-socios') ? 'active' : '' }}" href="{{ route('informes.ventas-socios') }}">{{ strtoupper(__('Ventas por Socio')) }}</a>
                                 <a class="dropdown-item {{ request()->routeIs('informes.compras-usuarios') ? 'active' : '' }}" href="{{ route('informes.compras-usuarios') }}">{{ strtoupper(__('Compras por Usuario')) }}</a>
                                 <a class="dropdown-item {{ request()->routeIs('informes.evolucion-temporal') ? 'active' : '' }}" href="{{ route('informes.evolucion-temporal') }}">{{ __('EVOLUCIÓN TEMPORAL') }}</a>
+                                @endif
                             @else
+                                @if (Auth::user()->role_id < \App\Enums\Role::USUARIO_MESAS)
                                 <a class="dropdown-item {{ request()->routeIs('informes.ventas-productos') ? 'active' : '' }}" href="{{ route('informes.ventas-productos') }}">{{ strtoupper(__('Ventas por Producto')) }}</a>
                                 <!-- <a class="dropdown-item {{ request()->routeIs('informes.ventas-camareros') ? 'active' : '' }}" href="{{ route('informes.ventas-camareros') }}">{{ strtoupper(__('Ventas por Camarero')) }}</a>
                                 <a class="dropdown-item {{ request()->routeIs('informes.ocupacion-mesas') ? 'active' : '' }}" href="{{ route('informes.ocupacion-mesas') }}">{{ strtoupper(__('Ocupacion de Mesas')) }}</a>
                                 <a class="dropdown-item {{ request()->routeIs('informes.horas-pico') ? 'active' : '' }}" href="{{ route('informes.horas-pico') }}">{{ strtoupper(__('Horas Pico')) }}</a> -->
+                                @endif
                             @endif
                         </div>
                     </li>
                     @endif
                     
+                    @if (Auth::user()->role_id < \App\Enums\Role::USUARIO_MESAS)
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('ajustes.*') ? 'active' : '' }}" href="{{ url('/ajustes') }}">{{ __('Settings') }}</a>
                     </li>
@@ -1042,29 +1081,37 @@
     <!-- Modal para enviar notificación -->
     <div class="modal fade" id="modalNotificacion" tabindex="-1" aria-labelledby="modalNotificacionLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title" id="modalNotificacionLabel">
-                        <i class="bi bi-chat-dots-fill"></i> Enviar Notificación
+            <div class="modal-content" style="border-radius: 20px; overflow: hidden;">
+                <div class="modal-header border-0" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); color: white; padding: 1.5rem;">
+                    <h5 class="modal-title fw-bold" id="modalNotificacionLabel">
+                        <i class="bi bi-megaphone-fill me-2"></i> Enviar Notificación
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body p-4">
                     <form id="formNotificacion">
                         <div class="mb-3">
-                            <label for="mensajeNotificacion" class="form-label">Mensaje</label>
-                            <textarea class="form-control" id="mensajeNotificacion" rows="4" placeholder="Escribe tu mensaje..." maxlength="200" required></textarea>
-                            <small class="text-muted">Máximo 200 caracteres</small>
+                            <label for="mensajeNotificacion" class="form-label fw-semibold">
+                                <i class="bi bi-chat-text me-1"></i> Mensaje
+                            </label>
+                            <textarea class="form-control" id="mensajeNotificacion" rows="4" 
+                                placeholder="Escribe tu mensaje para todos los usuarios..." 
+                                maxlength="200" 
+                                required
+                                style="border-radius: 10px; border: 2px solid #e0e0e0; resize: none;"></textarea>
+                            <div class="d-flex justify-content-between mt-2">
+                                <small class="text-muted">Máximo 200 caracteres</small>
+                                <small class="text-muted" id="contadorCaracteres">0/200</small>
+                            </div>
                         </div>
-                        
                     </form>
                 </div>
-                <div class="modal-footer justify-content-center">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="bi bi-x"></i>
+                <div class="modal-footer border-0 justify-content-center gap-2 pb-4">
+                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal" style="border-radius: 10px;">
+                        <i class="bi bi-x-lg me-2"></i>
                     </button>
-                    <button type="button" class="btn btn-primary" onclick="enviarNotificacionGlobal()">
-                        <i class="bi bi-send-fill"></i>
+                    <button type="button" class="btn btn-primary px-4" id="btnEnviarNotificacion" onclick="enviarNotificacionGlobal()" style="border-radius: 10px; background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); border: none;">
+                        <i class="bi bi-send-fill me-2"></i>
                     </button>
                 </div>
             </div>
@@ -1184,9 +1231,10 @@
                 return;
             }
             
-            const botonEnviar = event.target;
+            const botonEnviar = document.getElementById('btnEnviarNotificacion');
+            const iconoOriginal = botonEnviar.innerHTML;
             botonEnviar.disabled = true;
-            botonEnviar.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            botonEnviar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enviando...';
             
             try {
                 const response = await fetch('/enviar-notificacion-global', {
@@ -1203,21 +1251,59 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    alert(`✅ Notificación enviada a ${data.enviadas} usuario(s)`);
-                    document.getElementById('formNotificacion').reset();
-                    // Cerrar modal simulando click en el botón de cerrar
-                    document.querySelector('#modalNotificacion .btn-close').click();
+                    // Éxito - mostrar confirmación
+                    botonEnviar.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Enviado';
+                    botonEnviar.classList.remove('btn-primary');
+                    botonEnviar.classList.add('btn-success');
+                    
+                    setTimeout(() => {
+                        alert(`✅ Notificación enviada a ${data.enviadas} usuario(s)`);
+                        document.getElementById('formNotificacion').reset();
+                        document.getElementById('contadorCaracteres').textContent = '0/200';
+                        
+                        // Cerrar modal
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('modalNotificacion'));
+                        modal.hide();
+                        
+                        // Restaurar botón
+                        botonEnviar.disabled = false;
+                        botonEnviar.innerHTML = iconoOriginal;
+                        botonEnviar.classList.remove('btn-success');
+                        botonEnviar.classList.add('btn-primary');
+                    }, 800);
                 } else {
-                    alert('❌ Error: ' + (data.error || 'No se pudo enviar'));
+                    throw new Error(data.error || 'No se pudo enviar');
                 }
             } catch (error) {
                 console.error('Error al enviar notificación:', error);
-                alert('❌ Error de conexión');
-            } finally {
+                alert('❌ Error: ' + error.message);
+                
+                // Restaurar botón en caso de error
                 botonEnviar.disabled = false;
-                botonEnviar.innerHTML = '<i class="bi bi-send-fill"></i>';
+                botonEnviar.innerHTML = iconoOriginal;
             }
         }
+        
+        // Contador de caracteres en tiempo real
+        document.addEventListener('DOMContentLoaded', function() {
+            const textarea = document.getElementById('mensajeNotificacion');
+            const contador = document.getElementById('contadorCaracteres');
+            
+            if (textarea && contador) {
+                textarea.addEventListener('input', function() {
+                    const actual = this.value.length;
+                    contador.textContent = `${actual}/200`;
+                    
+                    if (actual > 180) {
+                        contador.classList.add('text-danger');
+                        contador.classList.remove('text-muted');
+                    } else {
+                        contador.classList.remove('text-danger');
+                        contador.classList.add('text-muted');
+                    }
+                });
+            }
+        });
     </script>
 
     <script>
@@ -1243,6 +1329,34 @@
     
     <!-- Offline Manager para PWA -->
     <script src="{{ asset('js/offline-manager.js') }}?v={{ time() }}" defer></script>
+    
+    <!-- 🎄 Script de nieve navideña -->
+    <script>
+        // Activar del 15 de diciembre al 6 de enero
+        const now = new Date();
+        const mes = now.getMonth(); // 11 = diciembre, 0 = enero (0-indexed)
+        const dia = now.getDate();
+        
+        const esTemporadaNavidad = (mes === 11 && dia >= 15) || (mes === 0 && dia <= 6);
+        
+        if (esTemporadaNavidad) {
+            function createSnowflake() {
+                const snowflake = document.createElement('div');
+                snowflake.classList.add('snowflake');
+                snowflake.innerHTML = '❄';
+                snowflake.style.left = Math.random() * window.innerWidth + 'px';
+                snowflake.style.animationDuration = Math.random() * 4 + 6 + 's'; // 6-10s (más lento)
+                snowflake.style.fontSize = Math.random() * 0.4 + 0.4 + 'em'; // 0.4-0.8em (más pequeños)
+                snowflake.style.opacity = Math.random() * 0.4 + 0.3; // 0.3-0.7 (más sutiles)
+                document.body.appendChild(snowflake);
+                
+                setTimeout(() => snowflake.remove(), 10000);
+            }
+            
+            // Crear 1 copo cada 1500ms (más espaciados)
+            setInterval(createSnowflake, 1500);
+        }
+    </script>
     
     @stack('scripts')
 </body>

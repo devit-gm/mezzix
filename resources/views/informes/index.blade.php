@@ -242,6 +242,7 @@ document.addEventListener('DOMContentLoaded', function() {
         @method('PUT')
         <div class="d-flex align-items-center justify-content-center">
             <button type="button" onclick="document.getElementById('realizar-busqueda').submit();" class="btn btn-secondary mx-1"><i class="bi bi-search"></i></button>
+            <button type="button" class="btn btn-info mx-1" data-bs-toggle="modal" data-bs-target="#modalResumen" title="{{ __('Ver resumen') }}"><i class="bi bi-table"></i></button>
             @if ($mostrarBotonFacturar == true)
             @if (Auth::user()->role_id < \App\Enums\Role::USUARIO_MESAS) </form>
                 <a class="btn btn-success fondo-rojo borde-rojo fs-3" href="#" onclick="if(confirm('{{ __('Se marcará como facturado todo lo pendiente. ¿Desea continuar?') }}')){ document.getElementById('form-facturar').submit(); }"><i class="bi bi-cash-coin"></i></a>
@@ -249,5 +250,52 @@ document.addEventListener('DOMContentLoaded', function() {
                 @endif
         </div>
     </form>
+</div>
+
+<!-- Modal Resumen -->
+<div class="modal fade" id="modalResumen" tabindex="-1" aria-labelledby="modalResumenLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header fondo-rojo">
+                <h6 class="modal-title text-white" id="modalResumenLabel">{{ __('Resumen del Balance') }}</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-2">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover table-sm mb-0" style="font-size: 0.85rem;">
+                        <thead class="table-dark">
+                            <tr>
+                                <th class="py-1">{{ __('Usuario') }}</th>
+                                <th class="text-end py-1">{{ __('Gastos') }}</th>
+                                <th class="text-end py-1">{{ __('Compras') }}</th>
+                                <th class="text-end py-1">{{ __('Balance') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($usuariosInforme as $usuario)
+                            <tr>
+                                <td class="py-1">{{ $usuario->name }}</td>
+                                <td class="text-end py-1">{{ number_format($usuario->gastos, 2) }}€</td>
+                                <td class="text-end py-1">{{ number_format($usuario->compras, 2) }}€</td>
+                                <td class="text-end py-1 fw-bold">{{ number_format($usuario->balance, 2) }}€</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot class="table-secondary fw-bold">
+                            <tr>
+                                <td class="py-1">{{ __('TOTAL') }}</td>
+                                <td class="text-end py-1">{{ number_format($totalGastos, 2) }}€</td>
+                                <td class="text-end py-1">{{ number_format($totalCompras, 2) }}€</td>
+                                <td class="text-end py-1">{{ number_format($totalBalance, 2) }}€</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer p-2 justify-content-center">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i> </button>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection

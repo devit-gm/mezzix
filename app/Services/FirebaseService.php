@@ -21,22 +21,16 @@ class FirebaseService
         if (empty($token)) return false;
 
         try {
-            // Usar SOLO DATA → funciona en foreground y background
+            // Usar SOLO DATA para evitar duplicados
+            // El campo 'notification' hace que algunos navegadores muestren automáticamente
+            // una notificación, duplicándola con la del Service Worker
             $messageData = array_merge([
                 'title' => $title,
                 'body'  => $body,
             ], $data);
 
             $message = CloudMessage::withTarget('token', $token)
-    ->withNotification([
-        'title' => $title,
-        'body'  => $body
-    ])
-    ->withData(array_merge([
-        'title' => $title,
-        'body'  => $body
-    ], $data));
-
+                ->withData($messageData);
 
             $this->messaging->send($message);
 

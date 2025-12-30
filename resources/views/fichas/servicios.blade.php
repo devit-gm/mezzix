@@ -179,9 +179,7 @@
             @php
                 $siguienteRuta = route('fichas.resumen', $ficha->uuid);
                 if (!isset($ajustes->modo_operacion) || $ajustes->modo_operacion == 'fichas') {
-                    if (!isset($ajustes->mostrar_gastos) || $ajustes->mostrar_gastos == 1) {
-                        $siguienteRuta = route('fichas.gastos', $ficha->uuid);
-                    }
+                    $siguienteRuta = route('fichas.gastos', $ficha->uuid);
                 }
             @endphp
             <a class="btn btn-dark mx-1" href="{{ $siguienteRuta }}"><i class="bi bi-chevron-right"></i></a>

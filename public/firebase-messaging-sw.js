@@ -26,41 +26,40 @@ fetch('/pwa-config.json')
         console.log('Usando ruta de iconos por defecto');
     });
 
+// Variable para controlar notificaciones ya mostradas
+const notificacionesMostradas = new Set();
+
 // Notificaciones cuando la PWA está en segundo plano
 messaging.onBackgroundMessage((payload) => {
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
-        // Si la app está abierta, no mostrar notificación (evita duplicados)
-        if (clients && clients.length > 0) {
-            return;
-        }
+    console.log('Mensaje en background recibido:', payload);
 
-        const title = payload.data?.title ?? payload.notification?.title;
-        const body = payload.data?.body ?? payload.notification?.body;
+    const title = payload.data?.title ?? payload.notification?.title;
+    const body = payload.data?.body ?? payload.notification?.body;
 
-        self.registration.showNotification(title, {
-            body: body,
-            icon: iconBasePath + '/icon-192x192.png',
-            badge: iconBasePath + '/icon-72x72.png',
-            data: payload.data
-        });
+    // Crear un ID único para esta notificación
+    const notifId = `${title}-${body}-${Date.now()}`;
+
+    // Si ya se mostró esta notificación en los últimos 2 segundos, ignorar
+    if (notificacionesMostradas.has(notifId)) {
+        console.log('Notificación duplicada ignorada');
+        return;
+    }
+
+    notificacionesMostradas.add(notifId);
+
+    // Limpiar el set después de 2 segundos
+    setTimeout(() => {
+        notificacionesMostradas.delete(notifId);
+    }, 2000);
+
+    return self.registration.showNotification(title, {
+        body: body,
+        icon: iconBasePath + '/icon-192x192.png',
+        badge: iconBasePath + '/icon-72x72.png',
+        data: payload.data,
+        tag: `notif-${Date.now()}`, // Tag único para evitar reemplazos
+        requireInteraction: false
     });
-
-    self.addEventListener('push', (event) => {
-        const payload = event.data.json();
-
-        const title = payload.data?.title;
-        const body = payload.data?.body;
-
-        event.waitUntil(
-            self.registration.showNotification(title, {
-                body: body,
-                icon: iconBasePath + '/icon-192x192.png',
-                badge: iconBasePath + '/icon-72x72.png',
-                data: payload.data
-            })
-        );
-    });
-
 });
 
 

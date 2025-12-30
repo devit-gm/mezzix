@@ -66,7 +66,7 @@ class VerificarReservasProximas extends Command
             $firebase->sendNotification(
                 $usuario->fcm_token,
                 '🔔 Último día para inscribirse',
-                "Hoy es el último día para inscribirte al evento '{$evento->nombre}' ({$fecha})",
+                "Hoy es el último día para inscribirte al evento '{$evento->descripcion}' ({$fecha})",
                 [
                     'type' => 'recordatorio_evento',
                     'evento_id' => $evento->uuid,

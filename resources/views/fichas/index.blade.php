@@ -33,7 +33,7 @@
                 <div class="card-body overflow-auto flex-fill">
                     <div class="container-fluid">
                         <div class="row justify-content-center align-items-center">
-                            <div class="col-12 col-md-12 col-lg-12">
+                            <div class="col-12 col-md-12 col-lg-12 p-0">
                                 <form id="realizar-busqueda" action="{{ route($rutaPrefix . '.index') }}" method="post">
                                     @csrf
                                     @method('PUT')
@@ -76,15 +76,8 @@
                                     @php
                                     $esUsuarioBasico = Auth::user()->role_id >= \App\Enums\Role::USUARIO_MESAS;
                                     
-                                    // Verificar si el usuario está inscrito en este evento
-                                    $estaInscrito = false;
-                                    if ($esAgenciaEventos && $ficha->tipo == 4 && $esUsuarioBasico) {
-                                        $estaInscrito = DB::connection('site')
-                                            ->table('fichas_usuarios')
-                                            ->where('id_ficha', $ficha->uuid)
-                                            ->where('user_id', Auth::id())
-                                            ->exists();
-                                    }
+                                    // Usar la información ya calculada en el controlador
+                                    $estaInscrito = ($esAgenciaEventos && $ficha->tipo == 4 && isset($ficha->apuntado));
                                     
                                     if ($esAgenciaEventos) {
                                         // En modo agencia, usuarios básicos van al detalle público

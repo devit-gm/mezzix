@@ -43,7 +43,11 @@ class AppServiceProvider extends ServiceProvider
 
         app()->instance('site', $site);
 
-
+        // Cargar ajustes del sitio y registrarlos globalmente
+        $ajustes = DB::connection('site')->table('ajustes')->first();
+        if ($ajustes) {
+            app()->instance('ajustes', $ajustes);
+        }
 
         config(['database.connections.site' => [
             'driver' => 'mysql',

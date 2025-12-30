@@ -100,7 +100,8 @@ foreach ($fichasMostrar as $ficha) {
 
     $esAdmin = $user && $user->role_id == 1;
     $esPropietario = Auth::id() == $ficha->user_id;
-    $estaEnFicha = $ficha->inscritos->where('user_id', Auth::id())->isNotEmpty();
+    // No modificar la colección inscritos aquí - usar contains() que no modifica
+    $estaEnFicha = $ficha->inscritos->contains('user_id', Auth::id());
 
     if ($ficha->tipo != 4) {
         if ($esPropietario || $esAdmin || $estaEnFicha) {
@@ -126,7 +127,8 @@ foreach ($fichas as $ficha) {
     // Borrable
     $esAdmin = $user && $user->role_id == 1;
     $esPropietario = Auth::id() == $ficha->user_id;
-    $estaEnFicha = $ficha->inscritos->where('user_id', Auth::id())->isNotEmpty();
+    // No modificar la colección inscritos aquí - usar contains() que no modifica
+    $estaEnFicha = $ficha->inscritos->contains('user_id', Auth::id());
 
     $ficha->borrable = ($esPropietario || $esAdmin || $estaEnFicha) && $ficha->estado == 0;
 
@@ -140,7 +142,22 @@ foreach ($fichas as $ficha) {
     
     // Agregar información de si el usuario está apuntado (para eventos tipo 4)
     if ($ficha->tipo == 4) {
-        $ficha->apuntado = $ficha->inscritos->where('user_id', Auth::id())->first();
+        // Consulta directa a la base de datos para eventos tipo 4
+        $ficha->apuntado = FichaUsuario::where('id_ficha', $ficha->uuid)
+            ->where('user_id', Auth::id())
+            ->first();
+        
+        // Si la relación inscritos está vacía, recargarla para el cálculo de totales
+        if ($ficha->inscritos->isEmpty()) {
+            $inscritosReales = FichaUsuario::where('id_ficha', $ficha->uuid)->get();
+            $ficha->total_comensales = $inscritosReales->sum(fn($u) => 1 + ($u->invitados ?? 0) + ($u->ninos ?? 0));
+            $ficha->total_ninos = $inscritosReales->sum(fn($u) => $u->ninos ?? 0);
+        }
+        
+        // En modo agencia_eventos, actualizar inscritos_actuales
+        if ($ajustes && $ajustes->modo_operacion === 'agencia_eventos') {
+            $ficha->inscritos_actuales = $ficha->total_comensales;
+        }
     }
 }
 
@@ -849,6 +866,13 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
                 $productoFicha = $producto->producto;
                 if (!$productoFicha) continue;
                 
+                if (!$productoFicha) {
+                    Log::warning('Producto no encontrado al confirmar venta', [
+                        'ficha_producto_id' => $producto->id
+                    ]);
+                    continue;
+                }
+                
                 if ($productoFicha->combinado == 1) {
                     foreach ($productoFicha->composicion as $composicion) {
                         $producto2 = $composicion->componenteProducto;
@@ -941,19 +965,20 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         $ficha = Ficha::find($uuid);
         $ficha->precio = $this->ObtenerImporteFicha($ficha);
         $usuariosFicha = FichaUsuario::where('id_ficha', $uuid)->get();
-        if ($usuariosFicha == null) {
+        if ($usuariosFicha->isEmpty()) {
             $usuariosFicha = User::where('id', $ficha->user_id)->get();
         } else {
-            $usuariosFicha = [];
+            $usuariosArray = [];
             //Buscar los usuarios que están dentro de FichaUsuario
             $usuarios = User::where('site_id', $site->id)->orderBy('id')->get();
             foreach ($usuarios as $usuario) {
                 //si el user_id está en FichaUsuario de la ficha lo ponemos como marcado
                 $fichaUsuario = FichaUsuario::where('id_ficha', $ficha->uuid)->where('user_id', $usuario->id)->first();
                 if ($fichaUsuario) {
-                    $usuariosFicha[] = $usuario;
+                    $usuariosArray[] = $usuario;
                 }
             }
+            $usuariosFicha = collect($usuariosArray);
         }
         return view('fichas.addgastos', compact('ficha', 'usuariosFicha'));
     }
@@ -991,7 +1016,7 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         } else {
             $request->validate([
                 'descripcion' => 'max:255',
-                'ticket' => 'required|image|mimes:png,jpg,jpeg|max:2048',
+                'ticket' => 'required|image|mimes:png,jpg,jpeg|max:20480',
                 'precio' => 'required'
             ]);
 
@@ -1192,7 +1217,7 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
                 }
             }
 
-            $existe = FichaProducto::where('id_ficha', $ficha->uuid)->where('id_producto', $producto->id)->first();
+            $existe = FichaProducto::where('id_ficha', $ficha->uuid)->where('id_producto', $producto->uuid)->first();
         if ($existe) {
             $existe->cantidad += $cantidad;
             $existe->precio += ($producto->precio * $cantidad);
@@ -1596,7 +1621,7 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         return response()->json([
             'numero_mesa' => $mesa->numero_mesa,
             'numero_comensales' => $mesa->numero_comensales,
-            'camarero' => $mesa->camarero->name ?? 'N/A',
+            'camarero' => ($mesa->camarero && $mesa->camarero->name) ? $mesa->camarero->name : 'N/A',
             'hora_apertura' => $mesa->hora_apertura ? $mesa->hora_apertura->format('H:i') : 'N/A',
             'importe_formateado' => number_format($importeTotal, 2) . ' €',
             'productos' => $productos,
