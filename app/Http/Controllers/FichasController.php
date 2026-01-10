@@ -711,10 +711,11 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         $ficha = Ficha::with(['productos.producto', 'servicios.servicio', 'usuarios', 'gastos'])->find($uuid);
         $ficha->precio = $this->ObtenerImporteFicha($ficha);
         
-        $total_consumos = $ficha->productos->sum('precio');
+        // Calcular totales con consultas directas (igual que ObtenerImporteFicha)
+        $total_consumos = FichaProducto::where('id_ficha', $ficha->uuid)->sum('precio');
         $ficha->total_consumos = $total_consumos;
         
-        $total_servicios = $ficha->servicios->sum('precio');
+        $total_servicios = FichaServicio::where('id_ficha', $ficha->uuid)->sum('precio');
         $ficha->total_servicios = $total_servicios;
 
         $total_comensales = 0;
@@ -722,9 +723,10 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         if ($ficha->tipo == 3) {
             $total_comensales = 1;
         } else {
-            $total_invitados = $ficha->usuarios->sum('invitados');
-            $total_ninos = $ficha->usuarios->sum('ninos');
-            $total_comensales = $ficha->usuarios->count() + $total_invitados + $total_ninos;
+            // Usar consultas directas en lugar de relaciones cargadas
+            $total_invitados = FichaUsuario::where('id_ficha', $ficha->uuid)->sum('invitados');
+            $total_ninos = FichaUsuario::where('id_ficha', $ficha->uuid)->sum('ninos');
+            $total_comensales = FichaUsuario::where('id_ficha', $ficha->uuid)->count() + $total_invitados + $total_ninos;
         }
         // De momento los invitados de grupo no cuentan
         // if ($ficha->invitados_grupo > 0) {
@@ -732,8 +734,10 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         // }
         $ficha->total_comensales = $total_comensales - $total_ninos;
         
-        $total_gastos = $ficha->gastos->sum('precio');
+        // Calcular total gastos con consulta directa
+        $total_gastos = FichaGasto::where('id_ficha', $ficha->uuid)->sum('precio');
         $ficha->total_gastos = $total_gastos;
+        
         if ($total_comensales == 0) {
             $ficha->precio_comensal = 0;
         } else {
