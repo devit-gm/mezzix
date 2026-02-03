@@ -803,7 +803,33 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         
         $ajustes = Ajustes::first();
         
-        return view('fichas.resumen', compact('ficha', 'ajustes', 'ivaDesglose', 'totalBaseImponible', 'totalIva'));
+        // Calcular cargo por invitados del usuario actual
+        $cargoInvitados = 0;
+        $numInvitadosUsuario = 0;
+        if ($ficha->tipo != 3) {
+            $fichaUsuario = FichaUsuario::where('id_ficha', $ficha->uuid)
+                ->where('user_id', Auth::id())
+                ->first();
+            
+            if ($fichaUsuario && $fichaUsuario->invitados > 0) {
+                $numInvitadosUsuario = $fichaUsuario->invitados;
+                $invitados_a_cobrar = $numInvitadosUsuario;
+                
+                // Aplicar límite máximo de invitados con cargo
+                if ($invitados_a_cobrar > $ajustes->max_invitados_cobrar) {
+                    $invitados_a_cobrar = $ajustes->max_invitados_cobrar;
+                }
+                
+                // Si el primer invitado es gratis, restar 1
+                if ($ajustes->primer_invitado_gratis && $invitados_a_cobrar > 0) {
+                    $invitados_a_cobrar--;
+                }
+                
+                $cargoInvitados = $invitados_a_cobrar * $ajustes->precio_invitado;
+            }
+        }
+        
+        return view('fichas.resumen', compact('ficha', 'ajustes', 'ivaDesglose', 'totalBaseImponible', 'totalIva', 'cargoInvitados', 'numInvitadosUsuario'));
     }
 
     public function enviar($uuid)

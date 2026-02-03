@@ -123,6 +123,18 @@
         <i class="bi bi-currency-euro"></i>
     </td>
 </tr>
+
+        @if(isset($cargoInvitados) && $cargoInvitados > 0)
+        <tr style="background-color: rgba(167, 56, 13, 0.1); border-top: 2px solid #A7380D;">
+            <th scope="row" class="fw-semibold" style="color: #A7380D;">
+                <i class="bi bi-person-plus-fill me-2"></i>{{ __('Tu cargo por invitados') }}
+            </th>
+            <td class="fw-semibold text-end" style="color: #A7380D;">
+                + {{ number_format($cargoInvitados, 2) }}
+                <i class="bi bi-currency-euro"></i>
+            </td>
+        </tr>
+        @endif
         @endif
     </tbody>
 </table>
