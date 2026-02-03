@@ -1059,7 +1059,7 @@
     <!-- Botón flotante estilo WhatsApp - Solo para usuarios autenticados (excepto cocineros en vista cocina) -->
     @auth
     @php
-        $ajustesChat = app('ajustes');
+        $ajustesChat = app()->has('ajustes') ? app('ajustes') : \App\Models\Ajustes::first();
         $esUsuarioBasico = Auth::user()->role_id >= 4;
         $esAgenciaEventos = $ajustesChat->modo_operacion === 'agencia_eventos';
         $mostrarChat = !$esCocineroEnCocina && !($esAgenciaEventos && $esUsuarioBasico);

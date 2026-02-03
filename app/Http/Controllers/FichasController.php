@@ -387,6 +387,15 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         }
         
         $ficha->precio = $this->ObtenerImporteFicha($ficha);
+        
+        // Calcular totales con consultas directas
+        $ficha->total_consumos = FichaProducto::where('id_ficha', $ficha->uuid)->sum('precio');
+        $ficha->total_servicios = FichaServicio::where('id_ficha', $ficha->uuid)->sum('precio');
+        $ficha->total_gastos = FichaGasto::where('id_ficha', $ficha->uuid)->sum('precio');
+        
+        // Recargar las relaciones forzando una consulta fresca
+        $ficha->load(['productos.producto', 'servicios.servicio', 'gastos']);
+        
         $fechaCambiada = Carbon::parse($ficha->fecha)->todateString();
         
         // Si es una mesa, usar la vista PDF específica para mesas
@@ -800,7 +809,8 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
     public function enviar($uuid)
     {
         $ficha = Ficha::find($uuid);
-        $ficha->precio = $this->ObtenerImporteFicha($ficha,true);
+        // NO sumar invitados aquí, se calculan por separado
+        $ficha->precio = $this->ObtenerImporteFicha($ficha, false);
         $gastosFicha = FichaGasto::where('id_ficha', $uuid)->get();
         $ajustes = DB::connection('site')->table('ajustes')->first();
         //Insertamos en la tabla ficha_recibos los gastos de la ficha
@@ -834,6 +844,27 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
             //Hay que añadir el gasto del propio comensal
             foreach ($usuarios as $usuario) {
                 $num_invitados = $usuario->invitados;
+                
+                // Calcular precio base por comensal (usuario + invitados)
+                $precio_recibo = $precio_comensal * ($num_invitados + 1);
+                
+                // Sumar el cargo adicional por invitados (1€ por invitado)
+                if ($num_invitados > 0) {
+                    $invitados_a_cobrar = $num_invitados;
+                    
+                    // Aplicar límite máximo de invitados con cargo
+                    if ($num_invitados > $ajustes->max_invitados_cobrar) {
+                        $invitados_a_cobrar = $ajustes->max_invitados_cobrar;
+                    }
+                    
+                    // Si el primer invitado es gratis, restar 1
+                    if ($ajustes->primer_invitado_gratis && $invitados_a_cobrar > 0) {
+                        $invitados_a_cobrar--;
+                    }
+                    
+                    // Sumar el cargo por invitados
+                    $precio_recibo += $invitados_a_cobrar * $ajustes->precio_invitado;
+                }
 
                 //si en la configuración del sitio las fichas se facturan de forma automática el estado se pone a 1
 
@@ -843,7 +874,7 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
                     'user_id' => $usuario->user_id,
                     'tipo' => 1,
                     'estado' => $ajustes->facturar_ficha_automaticamente ? 1 : 0,
-                    'precio' => $precio_comensal * ($num_invitados + 1),
+                    'precio' => $precio_recibo,
                     'fecha' => Carbon::now()
                 ]);
             }
@@ -1963,6 +1994,65 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         $ficha = Ficha::with(['productos.producto', 'servicios.servicio', 'camarero', 'gastos'])
             ->findOrFail($mesaId);
         
+        // Recargar las relaciones forzando una consulta fresca
+        $ficha->load(['productos.producto', 'servicios.servicio', 'gastos']);
+        
+        // DEBUG TEMPORAL - Mostrar info en consola del navegador
+        $debugInfo = [
+            'FICHA INFO' => [
+                'uuid' => $ficha->uuid,
+                'descripcion' => $ficha->descripcion,
+                'estado' => $ficha->estado,
+                'estado_mesa' => $ficha->estado_mesa ?? 'N/A',
+                'modo' => $ficha->modo ?? 'N/A',
+            ],
+            'PRODUCTOS CARGADOS' => [
+                'count' => $ficha->productos->count(),
+                'productos' => $ficha->productos->map(function($fp) {
+                    return [
+                        'id_producto' => $fp->id_producto,
+                        'cantidad' => $fp->cantidad,
+                        'precio' => $fp->precio,
+                        'producto_nombre' => $fp->producto ? $fp->producto->nombre : 'NULL',
+                        'producto_iva' => $fp->producto ? $fp->producto->iva : 'NULL',
+                    ];
+                })->toArray()
+            ],
+            'SERVICIOS CARGADOS' => [
+                'count' => $ficha->servicios->count(),
+                'servicios' => $ficha->servicios->map(function($fs) {
+                    return [
+                        'id_servicio' => $fs->id_servicio,
+                        'precio' => $fs->precio,
+                        'servicio_nombre' => $fs->servicio ? $fs->servicio->nombre : 'NULL',
+                    ];
+                })->toArray()
+            ],
+            'GASTOS CARGADOS' => [
+                'count' => $ficha->gastos->count(),
+                'gastos' => $ficha->gastos->map(function($fg) {
+                    return [
+                        'descripcion' => $fg->descripcion,
+                        'precio' => $fg->precio,
+                    ];
+                })->toArray()
+            ],
+            'CONSULTAS DIRECTAS' => [
+                'productos_count' => FichaProducto::where('id_ficha', $ficha->uuid)->count(),
+                'productos_sum' => FichaProducto::where('id_ficha', $ficha->uuid)->sum('precio'),
+                'servicios_count' => FichaServicio::where('id_ficha', $ficha->uuid)->count(),
+                'servicios_sum' => FichaServicio::where('id_ficha', $ficha->uuid)->sum('precio'),
+                'gastos_count' => FichaGasto::where('id_ficha', $ficha->uuid)->count(),
+                'gastos_sum' => FichaGasto::where('id_ficha', $ficha->uuid)->sum('precio'),
+            ]
+        ];
+        
+        echo '<script>console.log(' . json_encode($debugInfo, JSON_PRETTY_PRINT) . ');</script>';
+        echo '<script>console.table(' . json_encode($debugInfo['PRODUCTOS CARGADOS']['productos']) . ');</script>';
+        echo '<script>console.table(' . json_encode($debugInfo['CONSULTAS DIRECTAS']) . ');</script>';
+        echo '<h1>DEBUG ACTIVADO</h1><p>Abre la consola del navegador (F12) para ver los datos del ticket.</p>';
+        return;
+        
         // Verificar que la mesa/ficha esté cerrada (modo mesas o modo fichas)
         $ajustes = \App\Models\Ajustes::first();
         $esModoMesas = isset($ajustes->modo_operacion) && $ajustes->modo_operacion === 'mesas';
@@ -2125,6 +2215,9 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
     {
         $ficha = Ficha::with(['productos.producto', 'servicios.servicio', 'camarero', 'usuarios', 'gastos'])
             ->findOrFail($fichaId);
+        
+        // Recargar las relaciones forzando una consulta fresca
+        $ficha->load(['productos.producto', 'servicios.servicio', 'gastos']);
         
         // Verificar que la ficha esté cerrada
         $ajustes = \App\Models\Ajustes::first();
