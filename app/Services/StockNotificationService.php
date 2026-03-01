@@ -91,7 +91,7 @@ class StockNotificationService
     protected function enviarNotificaciones($producto, $ajustes)
     {
         try {
-            $site = app('site');
+            $site = get_site();
             
             Log::info('Obteniendo usuarios para notificar', [
                 'site_id' => $site->id,

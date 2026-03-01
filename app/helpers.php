@@ -17,7 +17,10 @@ if (!function_exists('servicios_menu')) {
 if (!function_exists('productos_menu')) {
     function productos_menu() {
         return Cache::rememberForever('productos_menu', function () {
-            return Producto::on('site')->orderBy('nombre')->get();
+            return Producto::on('site')
+                ->with(['familiaObj', 'componentes', 'fichas'])
+                ->orderBy('nombre')
+                ->get();
         });
     }
 }

@@ -46,9 +46,10 @@
                                                 <tbody>
                                                     @foreach ($productos as $producto)
                                                     @php
+                                                        $controlStockActivo = ($ajustes->permitir_comprar_sin_stock ?? 0) == 0;
                                                         $stockDisponible = max(0, $producto->stock - ($producto->stock_reservado ?? 0));
-                                                        $esStockBajo = $stockDisponible <= ($ajustes->stock_minimo ?? 5) && $stockDisponible > 0;
-                                                        $esAgotado = $stockDisponible <= 0;
+                                                        $esStockBajo = $controlStockActivo && $stockDisponible <= ($ajustes->stock_minimo ?? 5) && $stockDisponible > 0;
+                                                        $esAgotado = $controlStockActivo && $stockDisponible <= 0;
                                                     @endphp
                                                     <tr style="height: 80px;" class="{{ $esAgotado ? 'table-danger' : ($esStockBajo ? 'table-warning' : '') }}">
                                                         <td class="align-middle">
@@ -62,22 +63,26 @@
 
                                                         <td class="align-middle">
                                                             {{ $producto->nombre }}
-                                                            @if($esAgotado)
-                                                                <span class="badge bg-danger ms-2">{{ __('Agotado') }}</span>
-                                                            @elseif($esStockBajo)
-                                                                <span class="badge bg-warning text-dark ms-2">{{ __('Stock bajo') }}</span>
-                                                            @endif
-                                                            @if($producto->stock_reservado > 0)
-                                                                <br><small class="text-muted">({{ number_format($producto->stock_reservado, 2) }} reservado)</small>
+                                                            @if($controlStockActivo)
+                                                                @if($esAgotado)
+                                                                    <span class="badge bg-danger ms-2">{{ __('Agotado') }}</span>
+                                                                @elseif($esStockBajo)
+                                                                    <span class="badge bg-warning text-dark ms-2">{{ __('Stock bajo') }}</span>
+                                                                @endif
+                                                                @if($producto->stock_reservado > 0)
+                                                                    <br><small class="text-muted">({{ number_format($producto->stock_reservado, 2) }} reservado)</small>
+                                                                @endif
                                                             @endif
                                                         </td>
                                                         <td width="100" class="align-middle text-center">
                                                             <div class="form-group">
                                                                 <input class="form-control text-center" type="number" min="0" step="0.01" name="stock[{{ $producto->uuid }}]" id="stock[{{ $producto->uuid }}]" value="{{ $producto->stock }}">
                                                             </div>
-                                                            <small class="text-muted d-block mt-1">
-                                                                Disponible: <strong class="{{ $esAgotado ? 'text-dark' : ($esStockBajo ? 'text-dark' : 'text-dark') }}">{{ number_format($stockDisponible, 2) }}</strong>
-                                                            </small>
+                                                            @if($controlStockActivo)
+                                                                <small class="text-muted d-block mt-1">
+                                                                    Disponible: <strong class="{{ $esAgotado ? 'text-dark' : ($esStockBajo ? 'text-dark' : 'text-dark') }}">{{ number_format($stockDisponible, 2) }}</strong>
+                                                                </small>
+                                                            @endif
                                                         </td>
                                                     </tr>
                                                     @endforeach

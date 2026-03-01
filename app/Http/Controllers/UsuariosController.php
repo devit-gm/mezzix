@@ -46,7 +46,7 @@ class UsuariosController extends Controller
 
     public function index()
     {
-        $site = app('site');
+        $site = get_site();
         if(Auth::user()->role_id > 1){
             $usuarios = User::where('site_id', $site->id)->where('role_id', '>', 1)->orderBy('id')->get();
         }else{

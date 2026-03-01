@@ -23,7 +23,7 @@ class HomeController extends Controller
      */
     public function index()
     {
-        $ajustes = app('ajustes');
+        $ajustes = get_ajustes();
         
         // Redirigir según el modo de operación
         if ($ajustes && $ajustes->modo_operacion === 'agencia_eventos') {

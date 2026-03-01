@@ -30,17 +30,40 @@ class Handler extends ExceptionHandler
 
     function render($request, Throwable $exception)
     {
+        // 🚀 Capturar Token CSRF Mismatch y redirigir elegantemente
+        if ($exception instanceof \Illuminate\Session\TokenMismatchException) {
+            \Log::warning('Token CSRF expirado para usuario', [
+                'ip' => $request->ip(),
+                'url' => $request->fullUrl(),
+                'user_agent' => $request->userAgent()
+            ]);
+            
+            return redirect()
+                ->route('login')
+                ->withInput($request->except(['password', '_token']))
+                ->with('error', 'Tu sesión ha expirado. Por favor, inicia sesión de nuevo.');
+        }
+        
         if ($this->isHttpException($exception)) {
-            if ($exception->getCode() == 403) {
+            if ($exception->getStatusCode() == 403) {
                 return response()->view('errors.403', [], 403);
             }
-            if ($exception->getCode() == 404) {
+            if ($exception->getStatusCode() == 404) {
                 return response()->view('errors.404', [], 404);
             }
-            if ($exception->getCode() == 419) {
-                return response()->view('errors.419', [], 419);
+            if ($exception->getStatusCode() == 419) {
+                // También redirigir si es 419 HTTP
+                return redirect()
+                    ->route('login')
+                    ->with('error', 'Tu sesión ha expirado. Por favor, inicia sesión de nuevo.');
             }
-            if ($exception->getCode() == 500) {
+            if ($exception->getStatusCode() == 500) {
+                \Log::error('Error 500', [
+                    'exception' => $exception->getMessage(),
+                    'file' => $exception->getFile(),
+                    'line' => $exception->getLine(),
+                    'url' => $request->fullUrl()
+                ]);
                 return response()->view('errors.500', [], 500);
             }
         }

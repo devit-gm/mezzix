@@ -169,6 +169,7 @@ return [
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
         App\Providers\MailConfigServiceProvider::class,
+        App\Providers\ServiceLayerServiceProvider::class,
          Barryvdh\DomPDF\ServiceProvider::class
     ])->toArray(),
 

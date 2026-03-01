@@ -16,8 +16,8 @@ class InformesController extends Controller
 {
     public function index(Request $request)
     {
-        $site = app('site');
-        $ajustes = app('ajustes');
+        $site = get_site();
+        $ajustes = get_ajustes();
         
         if($ajustes->facturar_ficha_automaticamente){
             // Si la facturación automática de fichas está activada, no mostrar el botón de facturar
@@ -136,7 +136,7 @@ class InformesController extends Controller
      */
     public function informeProductos(Request $request)
     {
-        $ajustes = app('ajustes');
+        $ajustes = get_ajustes();
         
         // Verificar que estamos en modo mesas
         if ($ajustes->modo_operacion !== 'mesas') {
@@ -275,7 +275,7 @@ class InformesController extends Controller
      */
     public function ventasCamareros(Request $request)
     {
-        $ajustes = app('ajustes');
+        $ajustes = get_ajustes();
         
         if ($ajustes->modo_operacion !== 'fichas') {
             return redirect()->route('informes.index');

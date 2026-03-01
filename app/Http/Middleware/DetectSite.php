@@ -23,20 +23,12 @@ class DetectSite
      */
     public function handle($request, Closure $next)
     {
-        $domain = $request->getHost();
-        
-        // Normalizar el dominio añadiendo www si no las tiene
-        $domainWithWww = str_starts_with($domain, 'www.') ? $domain : 'www.' . $domain;
-        $domainWithoutWww = str_starts_with($domain, 'www.') ? substr($domain, 4) : $domain;
-        
-        // Buscar el sitio con o sin www
-        $site = Site::where('dominio', $domainWithWww)
-            ->orWhere('dominio', $domainWithoutWww)
-            ->first();
+        // 🚀 Usar helper para obtener site (carga bajo demanda)
+        $site = get_site();
         
         // Validar que el sitio existe
         if (!$site) {
-            abort(404, 'Sitio no encontrado para este dominio: ' . $domain);
+            abort(404, 'Sitio no encontrado para este dominio: ' . $request->getHost());
         }
         
         $user = Auth::user();

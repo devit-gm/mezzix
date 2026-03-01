@@ -112,7 +112,7 @@ class ReservasController extends Controller
         ]);
 
         // Enviar notificación a todos los usuarios del sitio activo con token FCM
-        $siteId = app('site')->id;
+        $siteId = get_site()->id;
         $usuarios = User::where('site_id', $siteId)
             ->whereNotNull('fcm_token')
             ->get();

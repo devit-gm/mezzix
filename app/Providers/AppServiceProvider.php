@@ -31,46 +31,76 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(Request $request): void
     {
-        $domain = $request->getHost();
-
-
-
-        $site = Site::where('dominio', $domain)->first();
-
-        if (!$site) {
-            abort(404, 'Site not found.');
+        // 🚀 OPTIMIZACIÓN: Saltar configuración de site en comandos CLI y rutas públicas
+        if ($this->app->runningInConsole()) {
+            return;
         }
-
-        app()->instance('site', $site);
-
-        // Cargar ajustes del sitio y registrarlos globalmente
-        $ajustes = DB::connection('site')->table('ajustes')->first();
-        if ($ajustes) {
-            app()->instance('ajustes', $ajustes);
-        }
-
-        config(['database.connections.site' => [
-            'driver' => 'mysql',
-            'host' => $site->db_host,
-            'database' => $site->db_name,
-            'username' => $site->db_user,
-            'password' => $site->db_password,
-            'charset' => 'utf8mb4',
-            'collation' => 'utf8mb4_unicode_ci',
-            'prefix' => '',
-        ]]);
-
-        // Configurar paths específicos del sitio
-        config(['site.logo' => $site->ruta_logo]);
-        config(['site.name' => $site->nombre]);
-        config(['site.logoNav' => $site->ruta_logo_nav]);
-        config(['site.styles' => $site->ruta_estilos]);
-        config(['site.favicon' => $site->favicon]);
-
-        $this->defineSiteRoutes($site);
         
-        // OPTIMIZADO: Eager loading global para prevenir N+1 queries
-        $this->configureEagerLoading();
+        // Saltar en rutas de autenticación para evitar 500 antes de login
+        if ($request->is('login', 'register', 'password/*', 'logout')) {
+            return;
+        }
+        
+        $domain = $request->getHost();
+        
+        try {
+            $site = Site::where('dominio', $domain)->first();
+
+            if (!$site) {
+                // Solo abortar si no es una ruta API
+                if (!$request->is('api/*')) {
+                    abort(404, 'Site not found.');
+                }
+                return;
+            }
+
+            app()->instance('site', $site);
+
+            // Cargar ajustes del sitio con CACHE y registrarlos globalmente
+            $ajustes = \Cache::remember("ajustes_site_{$site->uuid}", 3600, function () {
+                return DB::connection('site')->table('ajustes')->first();
+            });
+            
+            if ($ajustes) {
+                app()->instance('ajustes', $ajustes);
+            }
+
+            config(['database.connections.site' => [
+                'driver' => 'mysql',
+                'host' => $site->db_host,
+                'database' => $site->db_name,
+                'username' => $site->db_user,
+                'password' => $site->db_password,
+                'charset' => 'utf8mb4',
+                'collation' => 'utf8mb4_unicode_ci',
+                'prefix' => '',
+            ]]);
+
+            // Configurar paths específicos del sitio
+            config(['site.logo' => $site->ruta_logo]);
+            config(['site.name' => $site->nombre]);
+            config(['site.logoNav' => $site->ruta_logo_nav]);
+            config(['site.styles' => $site->ruta_estilos]);
+            config(['site.favicon' => $site->favicon]);
+
+            $this->defineSiteRoutes($site);
+            
+            // OPTIMIZADO: Eager loading global para prevenir N+1 queries
+            $this->configureEagerLoading();
+            
+        } catch (\Exception $e) {
+            // 🚨 Loggear errores pero no romper la app
+            Log::error('Error en AppServiceProvider::boot', [
+                'message' => $e->getMessage(),
+                'domain' => $domain,
+                'url' => $request->fullUrl()
+            ]);
+            
+            // Si es request web, mostrar error amigable
+            if (!$request->is('api/*')) {
+                abort(500, 'Error al cargar configuración del sitio');
+            }
+        }
     }
     
     /**

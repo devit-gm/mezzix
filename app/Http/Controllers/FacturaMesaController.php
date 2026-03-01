@@ -257,7 +257,7 @@ class FacturaMesaController extends Controller
         $factura = FacturaMesa::with(['mesa', 'camarero'])->findOrFail($id);
         $ivaDesglose = $factura->getDesgloseIva();
         $ajustes = \App\Models\Ajustes::first();
-        $site = app('site');
+        $site = get_site();
         
         $pdf = Pdf::loadView('facturas.pdf', compact('factura', 'ivaDesglose', 'ajustes', 'site'));
         

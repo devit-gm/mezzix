@@ -19,6 +19,7 @@ use App\Http\Controllers\SmsController;
 use App\Http\Controllers\ContactoController;
 use App\Http\Controllers\ManifestController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\Mesas\MesasController;
 use App\Http\Middleware\RoleMiddleware;
 use App\Services\FirebaseService;
 
@@ -169,17 +170,17 @@ Route::middleware(['detect.site', 'auth'])->group(function () {
     Route::delete('/eventos/gestion/{uuid}', [FichasController::class, 'destroy'])->name('eventos.gestion.destroy');
 
     // Rutas para sistema de mesas
-    Route::get('/mesas', [FichasController::class, 'indexMesas'])->name('mesas.index');
-    Route::post('/mesas/generar', [FichasController::class, 'generarMesas'])->name('mesas.generar');
-    Route::post('/mesas/crear-individual', [FichasController::class, 'crearMesaIndividual'])->name('mesas.crear-individual');
-    Route::put('/mesas/{mesaUuid}/actualizar', [FichasController::class, 'actualizarMesa'])->name('mesas.actualizar');
-    Route::delete('/mesas/{mesaUuid}', [FichasController::class, 'eliminarMesa'])->name('mesas.eliminar');
-    Route::post('/mesas/reordenar', [FichasController::class, 'reordenarMesas'])->name('mesas.reordenar');
-    Route::post('/mesas/{mesaId}/abrir', [FichasController::class, 'abrirMesa'])->name('mesas.abrir');
-    Route::post('/mesas/{mesaId}/tomar', [FichasController::class, 'tomarMesa'])->name('mesas.tomar');
-    Route::get('/mesas/{mesaId}/resumen', [FichasController::class, 'resumenMesa'])->name('mesas.resumen');
-    Route::post('/mesas/{mesaId}/cerrar', [FichasController::class, 'cerrarMesa'])->name('mesas.cerrar');
-    Route::post('/mesas/{mesaId}/liberar', [FichasController::class, 'liberarMesa'])->name('mesas.liberar');
+    Route::get('/mesas', [MesasController::class, 'index'])->name('mesas.index');
+    Route::post('/mesas/generar', [MesasController::class, 'generar'])->name('mesas.generar');
+    Route::post('/mesas/crear-individual', [MesasController::class, 'crearIndividual'])->name('mesas.crear-individual');
+    Route::put('/mesas/{mesaUuid}/actualizar', [MesasController::class, 'actualizar'])->name('mesas.actualizar');
+    Route::delete('/mesas/{mesaUuid}', [MesasController::class, 'eliminar'])->name('mesas.eliminar');
+    Route::post('/mesas/reordenar', [MesasController::class, 'reordenar'])->name('mesas.reordenar');
+    Route::post('/mesas/{mesaId}/abrir', [MesasController::class, 'abrir'])->name('mesas.abrir');
+    Route::post('/mesas/{mesaId}/tomar', [MesasController::class, 'tomar'])->name('mesas.tomar');
+    Route::get('/mesas/{mesaId}/resumen', [MesasController::class, 'resumen'])->name('mesas.resumen');
+    Route::post('/mesas/{mesaId}/cerrar', [MesasController::class, 'cerrar'])->name('mesas.cerrar');
+    Route::post('/mesas/{mesaId}/liberar', [MesasController::class, 'liberar'])->name('mesas.liberar');
     
     // Rutas alias para mesas (apuntan al mismo controlador que fichas)
     Route::get('/mesas/{uuid}/lista', [FichasController::class, 'lista'])->name('mesas.lista');
@@ -236,7 +237,7 @@ Route::middleware(['detect.site', 'auth'])->group(function () {
     // Ticket de mesa
     Route::get('/mesas/{mesaId}/ticket', [FichasController::class, 'generarTicket'])->name('mesas.ticket');
     
-    // Ticket de ficha (descarga PDF)
+    // Ticket de ficha (descarga PDF) - Impresora térmica 80mm
     Route::get('/fichas/{uuid}/ticket', [FichasController::class, 'descargarTicket'])->name('fichas.ticket');
 
     // Albaranes de compra

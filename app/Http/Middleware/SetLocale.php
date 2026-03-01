@@ -22,7 +22,7 @@ class SetLocale
         $locale = config('app.locale', 'es');
 
         // Si hay un sitio activo, usar su idioma
-        $site = app('site');
+        $site = get_site();
         if ($site && $site->locale) {
             $locale = $site->locale;
         }

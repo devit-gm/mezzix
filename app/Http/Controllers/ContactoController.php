@@ -37,7 +37,7 @@ class ContactoController extends Controller
 
         try {
             // Obtener el email del sitio actual
-            $site = app('site');
+            $site = get_site();
             
             // Obtener emails de administradores del sitio
             $administradores = User::where('site_id', $site->id)

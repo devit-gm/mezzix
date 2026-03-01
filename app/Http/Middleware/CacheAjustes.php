@@ -14,7 +14,7 @@ class CacheAjustes
      */
     public function handle(Request $request, Closure $next)
     {
-        $site = app('site');
+        $site = get_site();
         
         // Cachear ajustes por 60 minutos usando el site_id como clave
         $ajustes = Cache::remember('ajustes_site_' . $site->id, 3600, function () {

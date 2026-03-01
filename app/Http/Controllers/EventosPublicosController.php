@@ -15,7 +15,7 @@ class EventosPublicosController extends Controller
      */
     public function index()
     {
-        $ajustes = app('ajustes');
+        $ajustes = get_ajustes();
         
         // Solo disponible en modo agencia_eventos
         if ($ajustes->modo_operacion !== 'agencia_eventos') {
@@ -38,7 +38,7 @@ class EventosPublicosController extends Controller
      */
     public function show($uuid)
     {
-        $ajustes = app('ajustes');
+        $ajustes = get_ajustes();
         
         if ($ajustes->modo_operacion !== 'agencia_eventos') {
             return redirect()->route('home');
@@ -81,7 +81,7 @@ class EventosPublicosController extends Controller
         $evento = Ficha::findOrFail($uuid);
         \Log::info('Evento encontrado', ['evento_id' => $evento->uuid, 'descripcion' => $evento->descripcion]);
         
-        $ajustes = app('ajustes');
+        $ajustes = get_ajustes();
         
         if ($ajustes->modo_operacion !== 'agencia_eventos') {
             \Log::warning('Intento de inscripción fuera de modo agencia');
@@ -170,7 +170,7 @@ class EventosPublicosController extends Controller
         }
 
         $evento = Ficha::findOrFail($uuid);
-        $ajustes = app('ajustes');
+        $ajustes = get_ajustes();
         
         if ($ajustes->modo_operacion !== 'agencia_eventos') {
             return redirect()->route('home');
@@ -215,7 +215,7 @@ class EventosPublicosController extends Controller
             return redirect()->route('login');
         }
 
-        $ajustes = app('ajustes');
+        $ajustes = get_ajustes();
         
         if ($ajustes->modo_operacion !== 'agencia_eventos') {
             return redirect()->route('home');
@@ -258,7 +258,7 @@ class EventosPublicosController extends Controller
             }
 
             // Notificación al creador del evento
-            $creador = \App\Models\User::where('site_id', app('site')->id)
+            $creador = \App\Models\User::where('site_id', get_site()->id)
                 ->find($evento->user_id);
                 
             if ($creador && $creador->fcm_token && $creador->id !== $usuario->id) {

@@ -26,11 +26,26 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use App\Jobs\NotificarStockBajo;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\FichaService;
+use App\Services\ProductoService;
 
 class FichasController extends Controller
 {
-    public function __construct()
+    /**
+     * @var FichaService
+     */
+    protected $fichaService;
+    
+    /**
+     * @var ProductoService
+     */
+    protected $productoService;
+    
+    public function __construct(FichaService $fichaService, ProductoService $productoService)
     {
+        $this->fichaService = $fichaService;
+        $this->productoService = $productoService;
+        
         $this->middleware(function ($request, $next) {
             $domain = $request->getHost();
             $site = Site::where('dominio', $domain)->first();
@@ -53,7 +68,7 @@ class FichasController extends Controller
     {
         Carbon::setLocale(app()->getLocale());
 
-        $site = app('site');
+        $site = get_site();
         $ajustes = DB::connection('site')->table('ajustes')->first();
 
         // Redirigir a mesas si el modo operación es 'mesas'
@@ -69,9 +84,15 @@ class FichasController extends Controller
             }
         }
 
-// Consulta principal (solo una)
+// Consulta principal con EAGER LOADING completo
 $query = Ficha::query()
-    ->with(['usuario', 'inscritos']);   // 🔥 Eager loading
+    ->with([
+        'usuario', 
+        'inscritos',
+        'productos',    // 🚀 Añadido
+        'servicios',    // 🚀 Añadido
+        'gastos'        // 🚀 Añadido
+    ]);
 
 if ($request->method() == "GET") {
     $query->where('estado', 0)
@@ -121,7 +142,7 @@ foreach ($fichas as $ficha) {
     // Solo calcular el precio si NO es un evento de agencia (tipo 4 en modo agencia_eventos)
     // En eventos de agencia, el precio viene del campo precio de la tabla
     if (!($ajustes && $ajustes->modo_operacion === 'agencia_eventos' && $ficha->tipo == 4)) {
-        $ficha->precio = $this->ObtenerImporteFicha($ficha);
+        $ficha->precio = $this->fichaService->calcularImporte($ficha);
     }
 
     // Borrable
@@ -178,23 +199,11 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         }    }
 
     /**
-     * Store a newly createdStore a newly created resource in storage.
+     * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(\App\Http\Requests\StoreFichaRequest $request)
     {
-        $request->validate([
-            'descripcion' => 'max:255',
-            'fecha' => 'required|date',
-            'tipo' => 'required',
-            'foto_evento' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048'
-        ]);
-
-        $descripcion = '';
-        if ($request->descripcion == null) {
-            $descripcion = '';
-        } else {
-            $descripcion = $request->descripcion;
-        }
+        $this->authorize('create', Ficha::class);
 
         // Manejar subida de foto del evento
         $fotoEvento = null;
@@ -202,15 +211,13 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
             $fotoEvento = $request->file('foto_evento')->store('eventos', 'public');
         }
 
-        // ...
-        $uuid = (string) Uuid::uuid4();
         $ficha = Ficha::create([
-            'uuid' => $uuid,
-            'descripcion' => $descripcion,
-            'user_id' => $request->user_id,
-            'precio' => $request->precio,
-            'invitados_grupo' => $request->invitados_grupo,
-            'estado' => $request->estado,
+            'uuid' => (string) Uuid::uuid4(),
+            'descripcion' => $request->descripcion ?? '',
+            'user_id' => $request->user_id ?? Auth::id(),
+            'precio' => $request->precio ?? 0,
+            'invitados_grupo' => $request->invitados_grupo ?? 0,
+            'estado' => $request->estado ?? 0,
             'tipo' => $request->tipo,
             'fecha' => $request->fecha,
             'hora' => $request->hora,
@@ -229,14 +236,13 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
             $this->notificarNuevoEvento($ficha);
         }
         
+        // Redirigir según el tipo de ficha
         if ($request->tipo == 1 || $request->tipo == 2) {
-            return redirect()->route('fichas.familias', ['uuid' => $ficha->uuid]);
+            return redirect()->route('fichas.familias', $ficha->uuid);
+        } elseif ($request->tipo == 4) {
+            return redirect()->route('fichas.usuarios', $ficha->uuid);
         } else {
-            if ($request->tipo == 4) {
-                return redirect()->route('fichas.usuarios', ['uuid' => $ficha->uuid]);
-            } else {
-                return redirect()->route('fichas.gastos', ['uuid' => $ficha->uuid]);
-            }
+            return redirect()->route('fichas.gastos', $ficha->uuid);
         }
     }
 
@@ -245,14 +251,19 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
      */
     public function show(string $uuid)
     {
-        $ficha = Ficha::find($uuid);
-        if ($ficha->user_id == Auth::id() || (Auth::check() && Auth::user()->role_id == 1) || FichaUsuario::where('id_ficha', $ficha->uuid)->where('user_id', Auth::id())->first()) {
-            $ficha->borrable = true;
-        } else {
-            $ficha->borrable = false;
-        }
-        $ficha->precio = $this->ObtenerImporteFicha($ficha);
-        $fechaCambiada = Carbon::parse($ficha->fecha)->todateTimeString();
+        $ficha = Ficha::with(['usuario', 'inscritos'])->findOrFail($uuid);
+        
+        // Verificar autorización con Policy
+        $this->authorize('view', $ficha);
+        
+        // Verificar si puede borrar
+        $ficha->borrable = auth()->user()->can('delete', $ficha);
+        
+        // Calcular precio
+        $ficha->precio = $this->fichaService->calcularImporte($ficha);
+        
+        $fechaCambiada = Carbon::parse($ficha->fecha)->toDateTimeString();
+        
         return view('fichas.edit', compact('ficha', 'fechaCambiada'));
     }
 
@@ -285,22 +296,12 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $uuid)
+    public function update(\App\Http\Requests\UpdateFichaRequest $request, string $uuid)
     {
-        $request->validate([
-            'descripcion' => 'max:255',
-            'fecha' => 'required|date',
-            'tipo' => 'required',
-            'foto_evento' => 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048'
-        ]);
-        $ficha = Ficha::find($uuid);
-
-        if ($request->descripcion == null) {
-            $ficha->descripcion = '';
-        } else {
-            $ficha->descripcion = $request->descripcion;
-        }
-        $descripcion = $ficha->descripcion;
+        $ficha = Ficha::findOrFail($uuid);
+        
+        // Verificar autorización
+        $this->authorize('update', $ficha);
 
         // Manejar subida de nueva foto del evento
         if ($request->hasFile('foto_evento')) {
@@ -312,11 +313,11 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         }
 
         $ficha->update([
-            'descripcion' => $descripcion,
-            'user_id' => $request->user_id,
-            'precio' =>  $request->precio ?? $this->ObtenerImporteFicha($ficha),
-            'invitados_grupo' => $request->invitados_grupo,
-            'estado' => $request->estado,
+            'descripcion' => $request->descripcion ?? '',
+            'user_id' => $request->user_id ?? $ficha->user_id,
+            'precio' => $request->precio ?? $this->fichaService->calcularImporte($ficha),
+            'invitados_grupo' => $request->invitados_grupo ?? $ficha->invitados_grupo,
+            'estado' => $request->estado ?? $ficha->estado,
             'tipo' => $request->tipo,
             'fecha' => $request->fecha,
             'hora' => $request->hora,
@@ -343,21 +344,25 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
      */
     public function destroy(string $uuid)
     {
+        $ficha = Ficha::findOrFail($uuid);
+        
+        // Verificar autorización
+        $this->authorize('delete', $ficha);
+        
         // Eliminar archivos de tickets antes de borrar registros
         $fichaGastos = FichaGasto::where('id_ficha', $uuid)->get(['ticket']);
         foreach ($fichaGastos as $fichaGasto) {
-            if ($fichaGasto->ticket && File::exists(public_path('images') . '/'  . $fichaGasto->ticket)) {
-                File::delete(public_path('images') . '/'  . $fichaGasto->ticket);
+            if ($fichaGasto->ticket && File::exists(public_path('images') . '/' . $fichaGasto->ticket)) {
+                File::delete(public_path('images') . '/' . $fichaGasto->ticket);
             }
         }
         
-        // Eliminación masiva con una sola query cada una
+        // Eliminación masiva
         FichaProducto::where('id_ficha', $uuid)->delete();
         FichaServicio::where('id_ficha', $uuid)->delete();
         FichaUsuario::where('id_ficha', $uuid)->delete();
         FichaGasto::where('id_ficha', $uuid)->delete();
         
-        $ficha = Ficha::find($uuid);
         $ficha->delete();
         
         return redirect()->route('fichas.index')
@@ -372,7 +377,7 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         $userId = Auth::id();
         $userTimezone = 'Europe/Madrid';
         $currentDateTime = Carbon::now($userTimezone);
-        $ajustes = app('ajustes');
+        $ajustes = get_ajustes();
         return view('fichas.create', compact('userId', 'currentDateTime', 'ajustes'));
     }
 
@@ -386,7 +391,7 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
             return redirect()->back()->with('error', 'Ficha no encontrada');
         }
         
-        $ficha->precio = $this->ObtenerImporteFicha($ficha);
+        $ficha->precio = $this->fichaService->calcularImporte($ficha);
         
         // Calcular totales con consultas directas
         $ficha->total_consumos = FichaProducto::where('id_ficha', $ficha->uuid)->sum('precio');
@@ -410,6 +415,168 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
     }
 
     /**
+     * Descargar ticket en formato 80mm para impresora térmica
+     *
+     * @param  string  $fichaId
+     */
+    public function descargarTicket($fichaId)
+    {
+        $ficha = Ficha::with(['productos.producto', 'servicios.servicio', 'camarero', 'usuarios', 'gastos'])
+            ->findOrFail($fichaId);
+        
+        // Verificar que la ficha esté cerrada
+        $ajustes = get_ajustes();
+        $esModoMesas = isset($ajustes->modo_operacion) && $ajustes->modo_operacion === 'mesas';
+        
+        if ($esModoMesas && $ficha->estado_mesa !== 'cerrada') {
+            return redirect()->back()->with('error', 'La mesa debe estar cerrada para descargar el ticket');
+        } elseif (!$esModoMesas && $ficha->estado != 1) {
+            return redirect()->back()->with('error', 'La ficha debe estar cerrada para descargar el ticket');
+        }
+        
+        // Generar nombre del archivo
+        $nombreArchivo = $esModoMesas 
+            ? 'ticket_mesa_' . ($ficha->numero_mesa ?? $ficha->uuid) . '_' . date('Ymd') . '.pdf'
+            : 'ticket_ficha_' . $ficha->uuid . '_' . date('Ymd') . '.pdf';
+        
+        $rutaTickets = public_path('tickets');
+        
+        // Crear directorio si no existe
+        if (!file_exists($rutaTickets)) {
+            mkdir($rutaTickets, 0755, true);
+        }
+        
+        $rutaCompleta = $rutaTickets . '/' . $nombreArchivo;
+        
+        // Si el archivo ya existe, redirigir directamente a él
+        if (file_exists($rutaCompleta)) {
+            return redirect(asset('tickets/' . $nombreArchivo));
+        }
+        
+        // Calcular totales con IVA
+        $lineas = [];
+        $subtotal = 0;
+        $totalIva = 0;
+        $ivaDesglose = [];
+        
+        // Añadir productos
+        foreach ($ficha->productos as $fp) {
+            if ($fp->producto) {
+                $iva = $fp->producto->iva ?? 21;
+                $pvp = $fp->precio; // El precio ya está multiplicado por la cantidad en FichaProducto
+                $precioUnitario = $fp->cantidad > 0 ? $fp->precio / $fp->cantidad : $fp->precio;
+                $baseImponible = $pvp / (1 + $iva / 100);
+                $importeIva = $pvp - $baseImponible;
+                
+                $lineas[] = [
+                    'tipo' => 'producto',
+                    'nombre' => $fp->producto->nombre,
+                    'cantidad' => $fp->cantidad,
+                    'precio_unitario' => $precioUnitario,
+                    'iva' => $iva,
+                    'total' => $pvp
+                ];
+                
+                $subtotal += $baseImponible;
+                $totalIva += $importeIva;
+                
+                $ivaKey = number_format($iva, 2);
+                if (!isset($ivaDesglose[$ivaKey])) {
+                    $ivaDesglose[$ivaKey] = [
+                        'porcentaje' => $iva,
+                        'base' => 0,
+                        'cuota' => 0
+                    ];
+                }
+                $ivaDesglose[$ivaKey]['base'] += $baseImponible;
+                $ivaDesglose[$ivaKey]['cuota'] += $importeIva;
+            }
+        }
+        
+        // Añadir servicios
+        foreach ($ficha->servicios as $fs) {
+            if ($fs->servicio) {
+                $iva = $fs->servicio->iva ?? 21;
+                $pvp = $fs->precio;
+                $baseImponible = $pvp / (1 + $iva / 100);
+                $importeIva = $pvp - $baseImponible;
+                
+                $lineas[] = [
+                    'tipo' => 'servicio',
+                    'nombre' => $fs->servicio->nombre,
+                    'cantidad' => 1,
+                    'precio_unitario' => $fs->precio,
+                    'iva' => $iva,
+                    'total' => $pvp
+                ];
+                
+                $subtotal += $baseImponible;
+                $totalIva += $importeIva;
+                
+                $ivaKey = number_format($iva, 2);
+                if (!isset($ivaDesglose[$ivaKey])) {
+                    $ivaDesglose[$ivaKey] = [
+                        'porcentaje' => $iva,
+                        'base' => 0,
+                        'cuota' => 0
+                    ];
+                }
+                $ivaDesglose[$ivaKey]['base'] += $baseImponible;
+                $ivaDesglose[$ivaKey]['cuota'] += $importeIva;
+            }
+        }
+        
+        // Añadir gastos
+        foreach ($ficha->gastos as $fg) {
+            $iva = 21; // IVA por defecto para gastos
+            $pvp = $fg->precio;
+            $baseImponible = $pvp / (1 + $iva / 100);
+            $importeIva = $pvp - $baseImponible;
+            
+            $lineas[] = [
+                'tipo' => 'gasto',
+                'nombre' => $fg->descripcion ?? 'Gasto',
+                'cantidad' => 1,
+                'precio_unitario' => $fg->precio,
+                'iva' => $iva,
+                'total' => $pvp
+            ];
+            
+            $subtotal += $baseImponible;
+            $totalIva += $importeIva;
+            
+            $ivaKey = number_format($iva, 2);
+            if (!isset($ivaDesglose[$ivaKey])) {
+                $ivaDesglose[$ivaKey] = [
+                    'porcentaje' => $iva,
+                    'base' => 0,
+                    'cuota' => 0
+                ];
+            }
+            $ivaDesglose[$ivaKey]['base'] += $baseImponible;
+            $ivaDesglose[$ivaKey]['cuota'] += $importeIva;
+        }
+        
+        $total = $subtotal + $totalIva;
+        $site = get_site();
+        
+        // Generar PDF usando dompdf
+        $pdf = PDF::loadView('fichas.ticket-pdf', compact('ficha', 'lineas', 'subtotal', 'totalIva', 'total', 'ivaDesglose', 'ajustes', 'site'));
+        
+        // Configurar ancho de ticket (80mm = 226.77 puntos)
+        $pdf->setPaper([0, 0, 226.77, 841.89], 'portrait');
+        
+        // Configurar opciones de dompdf
+        $pdf->getDomPDF()->set_option('isPhpEnabled', true);
+        
+        // Guardar el PDF en el servidor
+        $pdf->save($rutaCompleta);
+        
+        // Redirigir a la URL del PDF
+        return redirect(asset('tickets/' . $nombreArchivo));
+    }
+
+    /**
      * Show the form for editing the specified post.
      *
      * @param  int  $uuid
@@ -419,12 +586,12 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         $ficha = Ficha::where('uuid', $uuid)->firstOrFail();
         
         // Obtener ajustes para verificar el modo
-        $ajustes = app('ajustes');
+        $ajustes = get_ajustes();
         
         // Solo calcular el precio si NO estamos en modo agencia de eventos
         // En modo agencia, el precio viene directamente del campo precio de la tabla
         if ($ajustes->modo_operacion !== 'agencia_eventos' || $ficha->tipo != 4) {
-            $ficha->precio = $this->ObtenerImporteFicha($ficha);
+            $ficha->precio = $this->fichaService->calcularImporte($ficha);
         }
         
         $fechaCambiada = Carbon::parse($ficha->fecha)->todateString();
@@ -439,50 +606,18 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         return view('fichas.edit', compact('ficha', 'fechaCambiada', 'currentDateTime', 'ajustes'));
     }
 
-    private function ObtenerImporteFicha($ficha, $sumarInvitados = false)
-    {
-        // Usar ajustes cacheados si están disponibles
-        $ajustes = app()->has('ajustes') ? app('ajustes') : Ajustes::first();
-        
-        // Validar que ajustes existe
-        if (!$ajustes) {
-            Log::warning('Ajustes no encontrado en ObtenerImporteFicha', ['ficha_uuid' => $ficha->uuid]);
-            $ajustes = new Ajustes(); // Crear objeto vacío para evitar errores
-        }
-        
-        // Usar sum() en lugar de loops para mejor rendimiento
-        $precio = FichaProducto::where('id_ficha', $ficha->uuid)->sum('precio');
-        $precio += FichaServicio::where('id_ficha', $ficha->uuid)->sum('precio');
-        $precio += FichaGasto::where('id_ficha', $ficha->uuid)->sum('precio');
-        
-        // Solo procesar invitados si es necesario
-        if ($sumarInvitados && $ajustes->uuid) {
-            $usuarios = FichaUsuario::where('id_ficha', $ficha->uuid)->get(['invitados']);
-            foreach ($usuarios as $usuario) {
-                $num_invitados = $usuario->invitados;
-                if ($num_invitados > ($ajustes->max_invitados_cobrar ?? 0)) {
-                    $num_invitados = $ajustes->max_invitados_cobrar ?? 0;
-                }
-                if (($ajustes->primer_invitado_gratis ?? false) && $num_invitados > 0) {
-                    $num_invitados--;
-                }
-                $precio += $num_invitados * ($ajustes->precio_invitado ?? 0);
-            }
-        }
-        
-        if (($ajustes->activar_invitados_grupo ?? false) && $ficha->invitados_grupo > 0) {
-            $precio += $ficha->invitados_grupo;
-        }
-        
-        return $precio;
-    }
-
     public function familias(string $uuid)
     {
         $ficha = Ficha::find($uuid);
-        $ficha->precio = $this->ObtenerImporteFicha($ficha); 
-        $familias = Familia::orderBy('posicion')->get();
-        $ajustes = DB::connection('site')->table('ajustes')->first();
+        $ficha->precio = $this->fichaService->calcularImporte($ficha);
+        
+        // 🚀 OPTIMIZADO: Cache de familias (1 hora)
+        $site = get_site();
+        $familias = \Cache::remember("familias_site_{$site->uuid}", 3600, function () {
+            return Familia::orderBy('posicion')->get();
+        });
+        
+        $ajustes = get_ajustes(); // Ya está cacheado
         //Si no es un evento y el usuario activo no está en la ficha lo añadimos
         if ($ficha->tipo != 4) {
             $estaUsuarioActivo = FichaUsuario::where('id_ficha', $ficha->uuid)->where('user_id', Auth::id())->first();
@@ -562,10 +697,10 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
 
     public function productos($uuid, $uuid2)
     {
-        $ficha = Ficha::find($uuid);
-        $ficha->precio = $this->ObtenerImporteFicha($ficha);
+        $ficha = Ficha::with(['productos', 'servicios'])->find($uuid); // 🚀 Eager loading
+        $ficha->precio = $this->fichaService->calcularImporte($ficha);
         $familia = Familia::find($uuid2);
-        $ajustes = DB::connection('site')->table('ajustes')->first();
+        $ajustes = get_ajustes(); // 🚀 Usa cache
         $stockMinimo = $ajustes->stock_minimo ?? 5;
         
         // OPTIMIZADO: Cache solo de la lista de productos (estructura, no stock)
@@ -646,8 +781,8 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         $ficha = Ficha::find($uuid);
         $ajustes = DB::connection('site')->table('ajustes')->first();
      
-        $ficha->precio = $this->ObtenerImporteFicha($ficha);
-        $site = app('site');
+        $ficha->precio = $this->fichaService->calcularImporte($ficha);
+        $site = get_site();
         
         // Si es modo agencia de eventos (tipo 4), solo mostrar usuarios inscritos
         $esAgenciaEventos = ($ajustes->modo_operacion === 'agencia_eventos' && $ficha->tipo == 4);
@@ -688,7 +823,9 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
 
         $total_comensales = 0;
         
-        $fichasUsuariosData = FichaUsuario::where('id_ficha', $ficha->uuid)
+        // 🚀 OPTIMIZADO: Eager loading de usuarios relacionados
+        $fichasUsuariosData = FichaUsuario::with('usuario')
+            ->where('id_ficha', $ficha->uuid)
             ->get()
             ->keyBy('user_id');
 
@@ -718,7 +855,7 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
     public function resumen($uuid)
     {
         $ficha = Ficha::with(['productos.producto', 'servicios.servicio', 'usuarios', 'gastos'])->find($uuid);
-        $ficha->precio = $this->ObtenerImporteFicha($ficha);
+        $ficha->precio = $this->fichaService->calcularImporte($ficha);
         
         // Calcular totales con consultas directas (igual que ObtenerImporteFicha)
         $total_consumos = FichaProducto::where('id_ficha', $ficha->uuid)->sum('precio');
@@ -836,7 +973,7 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
     {
         $ficha = Ficha::find($uuid);
         // NO sumar invitados aquí, se calculan por separado
-        $ficha->precio = $this->ObtenerImporteFicha($ficha, false);
+        $ficha->precio = $this->fichaService->calcularImporte($ficha, false);
         $gastosFicha = FichaGasto::where('id_ficha', $uuid)->get();
         $ajustes = DB::connection('site')->table('ajustes')->first();
         //Insertamos en la tabla ficha_recibos los gastos de la ficha
@@ -988,7 +1125,7 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
     {
         $ajustes = Ajustes::first();
         $ficha = Ficha::find($uuid);
-        $ficha->precio = $this->ObtenerImporteFicha($ficha);
+        $ficha->precio = $this->fichaService->calcularImporte($ficha);
         $gastosFicha = FichaGasto::with('usuario')->where('id_ficha', $uuid)->get();
         foreach ($gastosFicha as $gastoFicha) {
             $gastoFicha->borrable = true;
@@ -1022,9 +1159,9 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
 
     public function addgastos($uuid)
     {
-        $site = app('site');
+        $site = get_site();
         $ficha = Ficha::find($uuid);
-        $ficha->precio = $this->ObtenerImporteFicha($ficha);
+        $ficha->precio = $this->fichaService->calcularImporte($ficha);
         $usuariosFicha = FichaUsuario::where('id_ficha', $uuid)->get();
         if ($usuariosFicha->isEmpty()) {
             $usuariosFicha = User::where('id', $ficha->user_id)->get();
@@ -1099,7 +1236,7 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
 
     public function updateusuarios($uuid, Request $request)
     {
-        $site = app('site');
+        $site = get_site();
         
         // Obtener datos completos de usuarios antes de la actualización (para detectar cambios)
         $usuariosAntes = FichaUsuario::where('id_ficha', $uuid)
@@ -1164,7 +1301,7 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
             }
         }
         
-        $ficha->precio = $this->ObtenerImporteFicha($ficha);
+        $ficha->precio = $this->fichaService->calcularImporte($ficha);
         $usuariosFicha = User::where('site_id', $site->id)->orderBy('id')->get();
         foreach ($usuariosFicha as $usuarioFicha) {
             //si el user_id está en FichaUsuario de la ficha lo ponemos como marcado
@@ -1196,7 +1333,7 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
             }
         }
         $ficha = Ficha::find($uuid);
-        $ficha->precio = $this->ObtenerImporteFicha($ficha);
+        $ficha->precio = $this->fichaService->calcularImporte($ficha);
         $serviciosFicha = Servicio::orderBy('nombre')->get();
         foreach ($serviciosFicha as $servicioFicha) {
             //si el id_servicio está en FichaServicio de la ficha lo ponemos como marcado
@@ -1213,7 +1350,7 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
     public function servicios($uuid)
     {
         $ficha = Ficha::find($uuid);
-        $ficha->precio = $this->ObtenerImporteFicha($ficha);
+        $ficha->precio = $this->fichaService->calcularImporte($ficha);
         $serviciosFicha = Servicio::orderBy('nombre')->get();
         foreach ($serviciosFicha as $servicioFicha) {
             //si el id_servicio está en FichaServicio de la ficha lo ponemos como marcado
@@ -1237,45 +1374,35 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
             $familia = Familia::find($request->idFamilia);
             $producto = Producto::with('composicion.componenteProducto')->find($request->idProducto);
             $cantidad = $request->cantidad;
+            
+            // 🚀 Obtener ajustes para verificar control de stock
+            $ajustes = get_ajustes();
 
-            // Verificar stock disponible (solo si la ficha está abierta)
-            if ($ficha->estado == 0) {
-                if ($producto->combinado == 1) {
-                    // Verificar stock de componentes (ya cargados con eager loading)
-                    foreach ($producto->composicion as $composicion) {
-                        $componente = $composicion->componenteProducto;
-                        if ($componente && !$componente->tieneStockDisponible($cantidad)) {
-                            return redirect()->back()
-                                ->with('error', "Stock insuficiente de {$componente->nombre}. Disponible: {$componente->stock_disponible}");
-                        }
-                    }
-                } else {
-                    // Verificar stock del producto simple
-                    if (!$producto->tieneStockDisponible($cantidad)) {
-                        return redirect()->back()
-                            ->with('error', "Stock insuficiente de {$producto->nombre}. Disponible: {$producto->stock_disponible}");
-                    }
+            // Verificar stock disponible solo si:
+            // 1. La ficha está abierta (estado == 0)
+            // 2. NO se permite comprar sin stock (permitir_comprar_sin_stock == 0)
+            if ($ficha->estado == 0 && $ajustes->permitir_comprar_sin_stock == 0) {
+                if (!$this->productoService->tieneStockDisponible($producto, $cantidad)) {
+                    $mensaje = "Stock insuficiente de {$producto->nombre}. Disponible: {$producto->stock_disponible}";
+                    return redirect()->back()->with('error', $mensaje);
                 }
             }
 
-            //Si el producto es combinado hay que sumar el precio de sus componentes
+            // Si el producto es combinado hay que sumar el precio de sus componentes
             if ($producto->combinado == 1) {
                 $precio = 0;
                 foreach ($producto->composicion as $composicion) {
                     $componente = $composicion->componenteProducto;
                     $precio += $componente->precio;
-                    
-                    // Reservar stock del componente (solo si ficha abierta)
-                    if ($ficha->estado == 0) {
-                        $componente->reservarStock($cantidad);
-                    }
                 }
                 $producto->precio = $precio;
-            } else {
-                // Reservar stock del producto simple (solo si ficha abierta)
-                if ($ficha->estado == 0) {
-                    $producto->reservarStock($cantidad);
-                }
+            }
+            
+            // Reservar stock solo si:
+            // 1. La ficha está abierta (estado == 0)
+            // 2. NO se permite comprar sin stock (permitir_comprar_sin_stock == 0)
+            if ($ficha->estado == 0 && $ajustes->permitir_comprar_sin_stock == 0) {
+                $this->productoService->reservarStock($producto, $cantidad);
             }
 
             $existe = FichaProducto::where('id_ficha', $ficha->uuid)->where('id_producto', $producto->uuid)->first();
@@ -1302,8 +1429,8 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
     public function lista($uuid)
     {
         $ficha = Ficha::find($uuid);
-        $ficha->precio = $this->ObtenerImporteFicha($ficha);
-        $ajustes = app('ajustes'); // Usar cache en lugar de query
+        $ficha->precio = $this->fichaService->calcularImporte($ficha);
+        $ajustes = get_ajustes(); // Usar cache en lugar de query
         
         if($ajustes->modo_operacion == 'mesas'){
             $productosFicha = FichaProducto::with('producto:uuid,nombre,precio,imagen,combinado,iva')
@@ -1334,21 +1461,11 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
             
             if ($fichaProducto && $fichaProducto->id_ficha === $uuid) {
                 // Es un UUID de ficha_producto (modo mesas) - borrar solo ese registro
-                // Liberar stock reservado (solo si ficha abierta)
+                // Liberar stock reservado usando ProductoService (solo si ficha abierta)
                 if ($ficha->estado == 0) {
                     $producto = Producto::with('composicion.componenteProducto')->find($fichaProducto->id_producto);
                     if ($producto) {
-                        if ($producto->combinado == 1) {
-                            // Liberar stock de componentes
-                            foreach ($producto->composicion as $composicion) {
-                                $componente = $composicion->componenteProducto;
-                                if ($componente) {
-                                    $componente->liberarStock($fichaProducto->cantidad);
-                                }
-                            }
-                        } else {
-                            $producto->liberarStock($fichaProducto->cantidad);
-                        }
+                        $this->productoService->liberarStock($producto, $fichaProducto->cantidad);
                     }
                 }
                 $fichaProducto->delete();
@@ -1357,21 +1474,11 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
                 $fichaProductos = FichaProducto::where('id_ficha', $uuid)->where('id_producto', $uuid2)->get();
                 $totalCantidad = $fichaProductos->sum('cantidad');
                 
-                // Liberar stock reservado (solo si ficha abierta)
+                // Liberar stock reservado usando ProductoService (solo si ficha abierta)
                 if ($ficha->estado == 0 && $totalCantidad > 0) {
                     $producto = Producto::with('composicion.componenteProducto')->find($uuid2);
                     if ($producto) {
-                        if ($producto->combinado == 1) {
-                            // Liberar stock de componentes
-                            foreach ($producto->composicion as $composicion) {
-                                $componente = $composicion->componenteProducto;
-                                if ($componente) {
-                                    $componente->liberarStock($totalCantidad);
-                                }
-                            }
-                        } else {
-                            $producto->liberarStock($totalCantidad);
-                        }
+                        $this->productoService->liberarStock($producto, $totalCantidad);
                     }
                 }
                 
@@ -1391,21 +1498,17 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
             $ficha = Ficha::find($uuid);
             $producto = Producto::with('composicion.componenteProducto')->find($uuid2);
             
-            // Si estamos añadiendo cantidad y la ficha está abierta, verificar stock
-            if ($cantidad > 0 && $ficha->estado == 0) {
-                if ($producto->combinado == 1) {
-                    foreach ($producto->composicion as $composicion) {
-                        $componente = $composicion->componenteProducto;
-                        if ($componente && !$componente->tieneStockDisponible($cantidad)) {
-                            return redirect()->route('fichas.lista', $uuid)
-                                ->with('error', "Stock insuficiente de {$componente->nombre}. Disponible: {$componente->stock_disponible}");
-                        }
-                    }
-                } else {
-                    if (!$producto->tieneStockDisponible($cantidad)) {
-                        return redirect()->route('fichas.lista', $uuid)
-                            ->with('error', "Stock insuficiente de {$producto->nombre}. Disponible: {$producto->stock_disponible}");
-                    }
+            // 🚀 Obtener ajustes para verificar control de stock
+            $ajustes = get_ajustes();
+            
+            // Verificar stock solo si:
+            // 1. Estamos añadiendo cantidad (> 0)
+            // 2. La ficha está abierta (estado == 0)
+            // 3. NO se permite comprar sin stock
+            if ($cantidad > 0 && $ficha->estado == 0 && $ajustes->permitir_comprar_sin_stock == 0) {
+                if (!$this->productoService->tieneStockDisponible($producto, $cantidad)) {
+                    $mensaje = "Stock insuficiente de {$producto->nombre}. Disponible: {$producto->stock_disponible}";
+                    return redirect()->route('fichas.lista', $uuid)->with('error', $mensaje);
                 }
             }
             
@@ -1424,8 +1527,8 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
             }
             
             if ($cantidad > 0) {
-                // Reservar stock (solo si ficha abierta)
-                if ($ficha->estado == 0) {
+                // Reservar stock solo si control de stock activo y ficha abierta
+                if ($ficha->estado == 0 && $ajustes->permitir_comprar_sin_stock == 0) {
                     if ($producto->combinado == 1) {
                         foreach ($producto->composicion as $composicion) {
                             $componente = $composicion->componenteProducto;
@@ -1450,8 +1553,8 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
                 return redirect()->route('fichas.lista', $uuid)
                     ->with('success', __('Producto añadido a la ficha'));
             } else {
-                // Liberar stock reservado (solo si ficha abierta)
-                if ($ficha->estado == 0) {
+                // Liberar stock reservado solo si control de stock activo y ficha abierta
+                if ($ficha->estado == 0 && $ajustes->permitir_comprar_sin_stock == 0) {
                     $cantidadLiberar = abs($cantidad);
                     if ($producto->combinado == 1) {
                         foreach ($producto->composicion as $composicion) {
@@ -1476,1146 +1579,8 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
     }
 
     // ========== MÉTODOS PARA SISTEMA DE MESAS ==========
+    // Movidos a App\Http\Controllers\Mesas\MesasController
     
-    /**
-     * Mostrar grid de mesas (modo restaurante)
-     */
-    public function indexMesas()
-    {
-        $user = Auth::user();
-        if ($user && $user->role_id == \App\Enums\Role::COCINERO) {
-            return redirect()->route('cocina.mesas');
-        }
-        $ajustes = DB::connection('site')->table('ajustes')->first();
-
-        // TODOS los camareros ven TODAS las mesas
-        $mesas = Ficha::mesas()
-            ->with(['camarero', 'productos.producto', 'servicios.servicio'])
-            ->orderBy('orden', 'asc')
-            ->orderByRaw('CAST(numero_mesa AS UNSIGNED) ASC')
-            ->get();
-
-        // Calcular importe y si tiene productos preparados para cada mesa
-        $mesas->each(function($mesa) {
-            $totalProductos = $mesa->productos->sum(function($fp) {
-                return $fp->producto ? $fp->producto->precio : 0;
-            });
-            $totalServicios = $mesa->servicios->sum(function($fs) {
-                return $fs->servicio ? $fs->servicio->precio : 0;
-            });
-            $mesa->importe = $totalProductos + $totalServicios;
-            // ¿Tiene algún producto preparado?
-            $mesa->tiene_preparado = $mesa->productos->contains(function($fp) {
-                return $fp->estado === 'preparado';
-            });
-        });
-
-        // Estadísticas personales del camarero
-        $misMesas = $mesas->where('camarero_id', $user->id)->where('estado_mesa', 'ocupada');
-        $estadisticas = [
-            'libres' => $mesas->where('estado_mesa', 'libre')->count(),
-            'ocupadas' => $mesas->where('estado_mesa', 'ocupada')->count(),
-            'mis_mesas' => $misMesas->count(),
-            'mi_facturacion' => $misMesas->sum('importe')
-        ];
-
-        return view('fichas.mesas-grid', compact('mesas', 'estadisticas', 'ajustes'));
-    }
-    
-    /**
-     * Abrir una mesa nueva
-     */
-    public function abrirMesa(Request $request, $mesaId)
-    {
-        $request->validate([
-            'numero_comensales' => 'required|integer|min:1|max:20'
-        ]);
-        
-        try {
-            return DB::transaction(function () use ($request, $mesaId) {
-                // Locking pesimista: bloquea el registro hasta que termine la transacción
-                $mesa = Ficha::where('uuid', $mesaId)
-                    ->lockForUpdate()
-                    ->firstOrFail();
-                
-                // Verificar que esté libre
-                if ($mesa->estado_mesa != 'libre') {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Esta mesa ya está ocupada'
-                    ], 400);
-                }
-                
-                // Abrir mesa y asignar al camarero actual
-                $mesa->update([
-                    'estado_mesa' => 'ocupada',
-                    'camarero_id' => Auth::id(),
-                    'numero_comensales' => $request->numero_comensales,
-                    'hora_apertura' => now(),
-                    'observaciones' => $request->notas ?? ''
-                ]);
-                
-                // Registrar en historial
-                \App\Models\MesaHistorial::create([
-                    'mesa_id' => $mesa->uuid,
-                    'accion' => 'abrir',
-                    'camarero_id' => Auth::id(),
-                    'detalles' => json_encode([
-                        'comensales' => $request->numero_comensales,
-                        'notas' => $request->notas
-                    ])
-                ]);
-                
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Mesa abierta correctamente'
-                ]);
-            });
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al abrir la mesa. Por favor, inténtalo de nuevo.'
-            ], 500);
-        }
-    }
-    
-    /**
-     * Tomar mesa de otro camarero
-     */
-    public function tomarMesa($mesaId)
-    {
-        try {
-            return DB::transaction(function () use ($mesaId) {
-                // Locking pesimista: bloquea el registro hasta que termine la transacción
-                $mesa = Ficha::where('uuid', $mesaId)
-                    ->lockForUpdate()
-                    ->firstOrFail();
-                
-                // Verificar que esté ocupada (no libre ni cerrada)
-                if ($mesa->estado_mesa != 'ocupada') {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Esta mesa no está disponible para tomar'
-                    ], 400);
-                }
-                
-                // Verificar que no sea ya del camarero actual
-                if ($mesa->camarero_id == Auth::id()) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Esta mesa ya es tuya'
-                    ], 400);
-                }
-                
-                $camareroAnterior = $mesa->camarero_id;
-                
-                // Transferir mesa al camarero actual
-                $mesa->update([
-                    'ultimo_camarero_id' => $camareroAnterior,
-                    'camarero_id' => Auth::id()
-                ]);
-                
-                // Registrar en historial
-                \App\Models\MesaHistorial::create([
-                    'mesa_id' => $mesa->uuid,
-                    'accion' => 'tomar',
-                    'camarero_id' => Auth::id(),
-                    'camarero_anterior_id' => $camareroAnterior,
-                    'detalles' => json_encode([
-                        'importe_actual' => $mesa->importe
-                    ])
-                ]);
-                
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Mesa tomada correctamente'
-                ]);
-            });
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al tomar la mesa. Por favor, inténtalo de nuevo.'
-            ], 500);
-        }
-    }
-    
-    /**
-     * Obtener resumen de una mesa para el modal de cierre
-     */
-    public function resumenMesa($mesaId)
-    {
-        $mesa = Ficha::with(['camarero', 'productos.producto', 'servicios.servicio'])
-            ->findOrFail($mesaId);
-        
-        $productos = $mesa->productos->map(function($fp) {
-            return [
-                'cantidad' => 1,
-                'nombre' => $fp->producto->nombre,
-                'precio' => $fp->producto->precio,
-                'precio_total' => number_format($fp->producto->precio, 2) . ' €'
-            ];
-        })->groupBy('nombre')->map(function($group) {
-            $first = $group->first();
-            return [
-                'cantidad' => $group->count(),
-                'nombre' => $first['nombre'],
-                'precio_total' => number_format($first['precio'] * $group->count(), 2) . ' €'
-            ];
-        })->values();
-        
-        $servicios = $mesa->servicios->map(function($fs) {
-            return [
-                'nombre' => $fs->servicio->nombre,
-                'precio' => number_format($fs->servicio->precio, 2) . ' €'
-            ];
-        });
-        
-        // Calcular importe total
-        $totalProductos = $mesa->productos->sum(function($fp) {
-            return $fp->producto ? $fp->producto->precio : 0;
-        });
-        $totalServicios = $mesa->servicios->sum(function($fs) {
-            return $fs->servicio ? $fs->servicio->precio : 0;
-        });
-        $importeTotal = $totalProductos + $totalServicios;
-        
-        return response()->json([
-            'numero_mesa' => $mesa->numero_mesa,
-            'numero_comensales' => $mesa->numero_comensales,
-            'camarero' => ($mesa->camarero && $mesa->camarero->name) ? $mesa->camarero->name : 'N/A',
-            'hora_apertura' => $mesa->hora_apertura ? $mesa->hora_apertura->format('H:i') : 'N/A',
-            'importe_formateado' => number_format($importeTotal, 2) . ' €',
-            'productos' => $productos,
-            'servicios' => $servicios
-        ]);
-    }
-    
-    /**
-     * Cerrar mesa y procesar pago
-     */
-    public function cerrarMesa(Request $request, $mesaId)
-    {
-        $request->validate([
-            'metodo_pago' => 'required|in:efectivo,tarjeta,mixto',
-            'propina' => 'nullable|numeric|min:0'
-        ]);
-        
-        try {
-            return DB::transaction(function () use ($request, $mesaId) {
-                // Locking pesimista: bloquea la mesa y productos relacionados
-                $mesa = Ficha::where('uuid', $mesaId)
-                    ->with(['productos.producto', 'servicios.servicio'])
-                    ->lockForUpdate()
-                    ->firstOrFail();
-                
-                // Verificar que sea el camarero asignado o admin
-                if ($mesa->camarero_id != Auth::id() && (!Auth::check() || Auth::user()->role_id != 1)) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'No tienes permiso para cerrar esta mesa'
-                    ], 403);
-                }
-                
-                // Verificar que esté en estado ocupada
-                if ($mesa->estado_mesa != 'ocupada') {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Esta mesa no está en estado ocupada'
-                    ], 400);
-                }
-        
-        // Calcular importe total de la mesa con IVA
-        $subtotal = 0;
-        $totalIva = 0;
-        $ivaDesglose = [];
-        
-        // Calcular productos con IVA (el precio ya incluye IVA)
-        foreach ($mesa->productos as $fp) {
-            if ($fp->producto) {
-                $iva = $fp->producto->iva ?? 0;
-                $pvp = $fp->producto->precio * $fp->cantidad; // PVP con IVA incluido
-                $baseImponible = $pvp / (1 + $iva / 100);
-                $importeIva = $pvp - $baseImponible;
-                
-                $subtotal += $baseImponible;
-                $totalIva += $importeIva;
-                
-                $ivaKey = number_format($iva, 2);
-                if (!isset($ivaDesglose[$ivaKey])) {
-                    $ivaDesglose[$ivaKey] = ['base' => 0, 'cuota' => 0];
-                }
-                $ivaDesglose[$ivaKey]['base'] += $baseImponible;
-                $ivaDesglose[$ivaKey]['cuota'] += $importeIva;
-            }
-        }
-        
-        // Calcular servicios con IVA (el precio ya incluye IVA)
-        foreach ($mesa->servicios as $fs) {
-            if ($fs->servicio) {
-                $iva = $fs->servicio->iva ?? 0;
-                $pvp = $fs->servicio->precio * $fs->cantidad; // PVP con IVA incluido
-                $baseImponible = $pvp / (1 + $iva / 100);
-                $importeIva = $pvp - $baseImponible;
-                
-                $subtotal += $baseImponible;
-                $totalIva += $importeIva;
-                
-                $ivaKey = number_format($iva, 2);
-                if (!isset($ivaDesglose[$ivaKey])) {
-                    $ivaDesglose[$ivaKey] = ['base' => 0, 'cuota' => 0];
-                }
-                $ivaDesglose[$ivaKey]['base'] += $baseImponible;
-                $ivaDesglose[$ivaKey]['cuota'] += $importeIva;
-            }
-        }
-        
-        $importeTotal = $subtotal + $totalIva;
-        $propina = $request->propina ?? 0;
-        
-        // Crear FichaRecibo con el importe total (marcado como pagado)
-        FichaRecibo::create([
-            'uuid' => (string) Uuid::uuid4(),
-            'id_ficha' => $mesa->uuid,
-            'user_id' => $mesa->camarero_id, // Asociado al camarero de la mesa
-            'tipo' => 1, // Tipo 1 = ingreso/venta
-            'estado' => 1, // Estado 1 = pagado
-            'precio' => $importeTotal + $propina,
-            'fecha' => now()
-        ]);
-        
-                // OPTIMIZADO: Confirmar ventas con eager loading de composición
-                $stockService = new \App\Services\StockNotificationService();
-                
-                foreach ($mesa->productos as $fichaProducto) {
-                    // Lock del producto para evitar race conditions en stock
-                    $producto = Producto::with(['composicion.componenteProducto' => function($query) {
-                        $query->select('uuid', 'nombre', 'stock', 'stock_reservado');
-                    }])
-                    ->where('uuid', $fichaProducto->id_producto)
-                    ->lockForUpdate()
-                    ->first();
-                    
-                    if ($producto) {
-                        if ($producto->combinado == 1) {
-                            // Producto combinado: confirmar venta de componentes (ya cargados con eager loading)
-                            foreach ($producto->composicion as $composicion) {
-                                $componente = $composicion->componenteProducto;
-                                
-                                if ($componente) {
-                                    // Lock del componente
-                                    $componenteLocked = Producto::where('uuid', $componente->uuid)
-                                        ->lockForUpdate()
-                                        ->first();
-                                    
-                                    if ($componenteLocked) {
-                                        // Verificar que haya stock suficiente
-                                        if ($componenteLocked->stock < $fichaProducto->cantidad) {
-                                            throw new \Exception('Stock insuficiente para ' . $componenteLocked->nombre);
-                                        }
-                                        
-                                        // Confirmar venta: descuenta stock real y libera reserva
-                                        $componenteLocked->confirmarVenta($fichaProducto->cantidad);
-                                        
-                                        // OPTIMIZADO: Verificar stock bajo de forma asíncrona
-                                        NotificarStockBajo::dispatch($componenteLocked->uuid)->afterCommit();
-                                    }
-                                }
-                            }
-                        } else {
-                            // Producto simple: verificar y confirmar venta
-                            if ($producto->stock < $fichaProducto->cantidad) {
-                                throw new \Exception('Stock insuficiente para ' . $producto->nombre);
-                            }
-                            
-                            // Confirmar venta: descuenta stock real y libera reserva
-                            $producto->confirmarVenta($fichaProducto->cantidad);
-                            
-                            // OPTIMIZADO: Verificar stock bajo de forma asíncrona
-                            NotificarStockBajo::dispatch($producto->uuid)->afterCommit();
-                        }
-                    }
-                }
-                
-                // Cerrar mesa
-                $mesa->update([
-                    'estado_mesa' => 'cerrada',
-                    'hora_cierre' => now(),
-                    'ultimo_camarero_id' => Auth::id(),
-                    'estado' => 1,
-                    'precio' => $importeTotal + $propina
-                ]);
-                
-                // Registrar en historial con desglose de IVA
-                \App\Models\MesaHistorial::create([
-                    'mesa_id' => $mesa->uuid,
-                    'accion' => 'cerrar',
-                    'camarero_id' => Auth::id(),
-                    'detalles' => [
-                        'metodo_pago' => $request->metodo_pago,
-                        'propina' => $propina,
-                        'subtotal' => round($subtotal, 2),
-                        'iva_desglose' => $ivaDesglose,
-                        'total_iva' => round($totalIva, 2),
-                        'importe_total' => round($importeTotal + $propina, 2)
-                    ]
-                ]);
-                
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Mesa cerrada correctamente',
-                    'desglose' => [
-                        'subtotal' => round($subtotal, 2),
-                        'iva_desglose' => $ivaDesglose,
-                        'total_iva' => round($totalIva, 2),
-                        'propina' => $propina,
-                        'total' => round($importeTotal + $propina, 2)
-                    ]
-                ]);
-            });
-        } catch (\Exception $e) {
-            Log::error('Error al cerrar mesa: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage() ?: 'Error al cerrar la mesa. Por favor, inténtalo de nuevo.'
-            ], 500);
-        }
-    }
-    
-    /**
-     * Liberar mesa cerrada para volver a usarla
-     */
-    public function liberarMesa($mesaId)
-    {
-        try {
-            return DB::transaction(function () use ($mesaId) {
-                // Locking pesimista
-                $mesa = Ficha::where('uuid', $mesaId)
-                    ->lockForUpdate()
-                    ->firstOrFail();
-                
-                // Solo admin o el mismo camarero puede liberar
-                if ($mesa->camarero_id != Auth::id() && (!Auth::check() || Auth::user()->role_id != 1)) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'No tienes permiso'
-                    ], 403);
-                }
-                
-                // Verificar que esté cerrada
-                if ($mesa->estado_mesa != 'cerrada') {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Esta mesa no está cerrada'
-                    ], 400);
-                }
-        
-        // Guardar productos y servicios antes de eliminar (para historial de ventas)
-        $productos = FichaProducto::where('id_ficha', $mesa->uuid)
-            ->with('producto')
-            ->get()
-            ->map(function($fp) {
-                $iva = $fp->producto ? ($fp->producto->iva ?? 0) : 0;
-                $baseImponible = $fp->cantidad * $fp->precio;
-                $importeIva = $baseImponible * ($iva / 100);
-                
-                return [
-                    'producto_id' => $fp->id_producto,
-                    'nombre' => $fp->producto ? $fp->producto->nombre : 'Producto eliminado',
-                    'cantidad' => $fp->cantidad,
-                    'precio' => $fp->precio,
-                    'iva' => $iva,
-                    'base_imponible' => $baseImponible,
-                    'importe_iva' => $importeIva,
-                    'total' => $baseImponible + $importeIva
-                ];
-            });
-            
-        $servicios = FichaServicio::where('id_ficha', $mesa->uuid)
-            ->with('servicio')
-            ->get()
-            ->map(function($fs) {
-                $iva = $fs->servicio ? ($fs->servicio->iva ?? 0) : 0;
-                $baseImponible = $fs->cantidad * $fs->precio;
-                $importeIva = $baseImponible * ($iva / 100);
-                
-                return [
-                    'servicio_id' => $fs->id_servicio,
-                    'nombre' => $fs->servicio ? $fs->servicio->nombre : 'Servicio eliminado',
-                    'cantidad' => $fs->cantidad,
-                    'precio' => $fs->precio,
-                    'iva' => $iva,
-                    'base_imponible' => $baseImponible,
-                    'importe_iva' => $importeIva,
-                    'total' => $baseImponible + $importeIva
-                ];
-            });
-        
-        // Calcular totales generales
-        $subtotal = $productos->sum('base_imponible') + $servicios->sum('base_imponible');
-        $totalIva = $productos->sum('importe_iva') + $servicios->sum('importe_iva');
-        $totalGeneral = $subtotal + $totalIva;
-        
-        // Calcular desglose de IVA por tipo
-        $ivaDesglose = [];
-        foreach ($productos->concat($servicios) as $item) {
-            $ivaKey = number_format($item['iva'], 2);
-            if (!isset($ivaDesglose[$ivaKey])) {
-                $ivaDesglose[$ivaKey] = [
-                    'base' => 0,
-                    'cuota' => 0
-                ];
-            }
-            $ivaDesglose[$ivaKey]['base'] += $item['base_imponible'];
-            $ivaDesglose[$ivaKey]['cuota'] += $item['importe_iva'];
-        }
-        
-        // Resetear mesa a estado libre
-        $mesa->update([
-            'estado_mesa' => 'libre',
-            'camarero_id' => null,
-            'ultimo_camarero_id' => $mesa->camarero_id,
-            'numero_comensales' => 0,
-            'hora_apertura' => null,
-            'hora_cierre' => null,
-            'estado' => 0
-        ]);
-        
-                // Limpiar consumos de la mesa
-                FichaProducto::where('id_ficha', $mesa->uuid)->delete();
-                FichaServicio::where('id_ficha', $mesa->uuid)->delete();
-                
-                // Guardar en historial con los productos y servicios
-                \App\Models\MesaHistorial::create([
-                    'mesa_id' => $mesa->uuid,
-                    'accion' => 'liberar',
-                    'camarero_id' => Auth::id(),
-                    'detalles' => [
-                        'productos' => $productos,
-                        'servicios' => $servicios,
-                        'subtotal' => round($subtotal, 2),
-                        'iva_desglose' => $ivaDesglose,
-                        'total_iva' => round($totalIva, 2),
-                        'total_general' => round($totalGeneral, 2)
-                    ]
-                ]);
-                
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Mesa liberada'
-                ]);
-            });
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Error al liberar la mesa. Por favor, inténtalo de nuevo.'
-            ], 500);
-        }
-    }
-
-    /**
-     * Generar ticket de una mesa cerrada para imprimir (genera PDF en línea)
-     */
-    public function generarTicket($mesaId)
-    {
-        $ficha = Ficha::with(['productos.producto', 'servicios.servicio', 'camarero', 'gastos'])
-            ->findOrFail($mesaId);
-        
-        // Recargar las relaciones forzando una consulta fresca
-        $ficha->load(['productos.producto', 'servicios.servicio', 'gastos']);
-        
-        // DEBUG TEMPORAL - Mostrar info en consola del navegador
-        $debugInfo = [
-            'FICHA INFO' => [
-                'uuid' => $ficha->uuid,
-                'descripcion' => $ficha->descripcion,
-                'estado' => $ficha->estado,
-                'estado_mesa' => $ficha->estado_mesa ?? 'N/A',
-                'modo' => $ficha->modo ?? 'N/A',
-            ],
-            'PRODUCTOS CARGADOS' => [
-                'count' => $ficha->productos->count(),
-                'productos' => $ficha->productos->map(function($fp) {
-                    return [
-                        'id_producto' => $fp->id_producto,
-                        'cantidad' => $fp->cantidad,
-                        'precio' => $fp->precio,
-                        'producto_nombre' => $fp->producto ? $fp->producto->nombre : 'NULL',
-                        'producto_iva' => $fp->producto ? $fp->producto->iva : 'NULL',
-                    ];
-                })->toArray()
-            ],
-            'SERVICIOS CARGADOS' => [
-                'count' => $ficha->servicios->count(),
-                'servicios' => $ficha->servicios->map(function($fs) {
-                    return [
-                        'id_servicio' => $fs->id_servicio,
-                        'precio' => $fs->precio,
-                        'servicio_nombre' => $fs->servicio ? $fs->servicio->nombre : 'NULL',
-                    ];
-                })->toArray()
-            ],
-            'GASTOS CARGADOS' => [
-                'count' => $ficha->gastos->count(),
-                'gastos' => $ficha->gastos->map(function($fg) {
-                    return [
-                        'descripcion' => $fg->descripcion,
-                        'precio' => $fg->precio,
-                    ];
-                })->toArray()
-            ],
-            'CONSULTAS DIRECTAS' => [
-                'productos_count' => FichaProducto::where('id_ficha', $ficha->uuid)->count(),
-                'productos_sum' => FichaProducto::where('id_ficha', $ficha->uuid)->sum('precio'),
-                'servicios_count' => FichaServicio::where('id_ficha', $ficha->uuid)->count(),
-                'servicios_sum' => FichaServicio::where('id_ficha', $ficha->uuid)->sum('precio'),
-                'gastos_count' => FichaGasto::where('id_ficha', $ficha->uuid)->count(),
-                'gastos_sum' => FichaGasto::where('id_ficha', $ficha->uuid)->sum('precio'),
-            ]
-        ];
-        
-        echo '<script>console.log(' . json_encode($debugInfo, JSON_PRETTY_PRINT) . ');</script>';
-        echo '<script>console.table(' . json_encode($debugInfo['PRODUCTOS CARGADOS']['productos']) . ');</script>';
-        echo '<script>console.table(' . json_encode($debugInfo['CONSULTAS DIRECTAS']) . ');</script>';
-        echo '<h1>DEBUG ACTIVADO</h1><p>Abre la consola del navegador (F12) para ver los datos del ticket.</p>';
-        return;
-        
-        // Verificar que la mesa/ficha esté cerrada (modo mesas o modo fichas)
-        $ajustes = \App\Models\Ajustes::first();
-        $esModoMesas = isset($ajustes->modo_operacion) && $ajustes->modo_operacion === 'mesas';
-        
-        if ($esModoMesas && $ficha->estado_mesa !== 'cerrada') {
-            return redirect()->back()->with('error', 'La mesa debe estar cerrada para imprimir el ticket');
-        } elseif (!$esModoMesas && $ficha->estado != 1) {
-            return redirect()->back()->with('error', 'La ficha debe estar cerrada para imprimir el ticket');
-        }
-        
-        // Generar nombre del archivo
-        $nombreArchivo = $esModoMesas 
-            ? 'ticket_mesa_' . ($ficha->numero_mesa ?? $ficha->uuid) . '_' . date('Ymd') . '.pdf'
-            : 'ticket_ficha_' . $ficha->uuid . '_' . date('Ymd') . '.pdf';
-        
-        $rutaTickets = public_path('tickets');
-        
-        // Crear directorio si no existe
-        if (!file_exists($rutaTickets)) {
-            mkdir($rutaTickets, 0755, true);
-        }
-        
-        $rutaCompleta = $rutaTickets . '/' . $nombreArchivo;
-        
-        // Si el archivo ya existe, redirigir directamente a él
-        if (file_exists($rutaCompleta)) {
-            return redirect(asset('tickets/' . $nombreArchivo));
-        }
-        
-        // Calcular totales con IVA
-        $lineas = [];
-        $subtotal = 0;
-        $totalIva = 0;
-        $ivaDesglose = [];
-        
-        // Añadir productos
-        foreach ($ficha->productos as $fp) {
-            if ($fp->producto) {
-                $iva = $fp->producto->iva ?? 21;
-                $pvp = $fp->precio; // El precio ya está multiplicado por la cantidad en FichaProducto
-                $precioUnitario = $fp->cantidad > 0 ? $fp->precio / $fp->cantidad : $fp->precio;
-                $baseImponible = $pvp / (1 + $iva / 100);
-                $importeIva = $pvp - $baseImponible;
-                
-                $lineas[] = [
-                    'tipo' => 'producto',
-                    'nombre' => $fp->producto->nombre,
-                    'cantidad' => $fp->cantidad,
-                    'precio_unitario' => $precioUnitario,
-                    'iva' => $iva,
-                    'total' => $pvp
-                ];
-                
-                $subtotal += $baseImponible;
-                $totalIva += $importeIva;
-                
-                // Agrupar por IVA
-                $ivaKey = number_format($iva, 2);
-                if (!isset($ivaDesglose[$ivaKey])) {
-                    $ivaDesglose[$ivaKey] = [
-                        'porcentaje' => $iva,
-                        'base' => 0,
-                        'cuota' => 0
-                    ];
-                }
-                $ivaDesglose[$ivaKey]['base'] += $baseImponible;
-                $ivaDesglose[$ivaKey]['cuota'] += $importeIva;
-            }
-        }
-        
-        // Añadir servicios
-        foreach ($ficha->servicios as $fs) {
-            if ($fs->servicio) {
-                $iva = $fs->servicio->iva ?? 21;
-                $pvp = $fs->precio; // El precio ya incluye IVA
-                $baseImponible = $pvp / (1 + $iva / 100);
-                $importeIva = $pvp - $baseImponible;
-                
-                $lineas[] = [
-                    'tipo' => 'servicio',
-                    'nombre' => $fs->servicio->nombre,
-                    'cantidad' => 1,
-                    'precio_unitario' => $fs->precio,
-                    'iva' => $iva,
-                    'total' => $pvp
-                ];
-                
-                $subtotal += $baseImponible;
-                $totalIva += $importeIva;
-                
-                // Agrupar por IVA
-                $ivaKey = number_format($iva, 2);
-                if (!isset($ivaDesglose[$ivaKey])) {
-                    $ivaDesglose[$ivaKey] = [
-                        'porcentaje' => $iva,
-                        'base' => 0,
-                        'cuota' => 0
-                    ];
-                }
-                $ivaDesglose[$ivaKey]['base'] += $baseImponible;
-                $ivaDesglose[$ivaKey]['cuota'] += $importeIva;
-            }
-        }
-        
-        // Añadir gastos
-        foreach ($ficha->gastos as $fg) {
-            $iva = 21; // IVA por defecto para gastos
-            $pvp = $fg->precio;
-            $baseImponible = $pvp / (1 + $iva / 100);
-            $importeIva = $pvp - $baseImponible;
-            
-            $lineas[] = [
-                'tipo' => 'gasto',
-                'nombre' => $fg->descripcion ?? 'Gasto',
-                'cantidad' => 1,
-                'precio_unitario' => $fg->precio,
-                'iva' => $iva,
-                'total' => $pvp
-            ];
-            
-            $subtotal += $baseImponible;
-            $totalIva += $importeIva;
-            
-            // Agrupar por IVA
-            $ivaKey = number_format($iva, 2);
-            if (!isset($ivaDesglose[$ivaKey])) {
-                $ivaDesglose[$ivaKey] = [
-                    'porcentaje' => $iva,
-                    'base' => 0,
-                    'cuota' => 0
-                ];
-            }
-            $ivaDesglose[$ivaKey]['base'] += $baseImponible;
-            $ivaDesglose[$ivaKey]['cuota'] += $importeIva;
-        }
-        
-        $total = $subtotal + $totalIva;
-        $site = app('site');
-        
-        // Generar PDF usando dompdf
-        $pdf = PDF::loadView('fichas.ticket-pdf', compact('ficha', 'lineas', 'subtotal', 'totalIva', 'total', 'ivaDesglose', 'ajustes', 'site'));
-        
-        // Configurar ancho de ticket (80mm = 226.77 puntos)
-        $pdf->setPaper([0, 0, 226.77, 841.89], 'portrait');
-        
-        // Configurar opciones de dompdf
-        $pdf->getDomPDF()->set_option('isPhpEnabled', true);
-        
-        // Guardar el PDF en el servidor
-        $pdf->save($rutaCompleta);
-        
-        // Redirigir a la URL del PDF
-        return redirect(asset('tickets/' . $nombreArchivo));
-    }
-
-    /**
-     * Descargar ticket como PDF
-     */
-    public function descargarTicket($fichaId)
-    {
-        $ficha = Ficha::with(['productos.producto', 'servicios.servicio', 'camarero', 'usuarios', 'gastos'])
-            ->findOrFail($fichaId);
-        
-        // Recargar las relaciones forzando una consulta fresca
-        $ficha->load(['productos.producto', 'servicios.servicio', 'gastos']);
-        
-        // Verificar que la ficha esté cerrada
-        $ajustes = \App\Models\Ajustes::first();
-        $esModoMesas = isset($ajustes->modo_operacion) && $ajustes->modo_operacion === 'mesas';
-        
-        if ($esModoMesas && $ficha->estado_mesa !== 'cerrada') {
-            return redirect()->back()->with('error', 'La mesa debe estar cerrada para descargar el ticket');
-        } elseif (!$esModoMesas && $ficha->estado != 1) {
-            return redirect()->back()->with('error', 'La ficha debe estar cerrada para descargar el ticket');
-        }
-        
-        // Generar nombre del archivo
-        $nombreArchivo = $esModoMesas 
-            ? 'ticket_mesa_' . ($ficha->numero_mesa ?? $ficha->uuid) . '_' . date('Ymd') . '.pdf'
-            : 'ticket_ficha_' . $ficha->uuid . '_' . date('Ymd') . '.pdf';
-        
-        $rutaTickets = public_path('tickets');
-        
-        // Crear directorio si no existe
-        if (!file_exists($rutaTickets)) {
-            mkdir($rutaTickets, 0755, true);
-        }
-        
-        $rutaCompleta = $rutaTickets . '/' . $nombreArchivo;
-        
-        // Si el archivo ya existe, redirigir directamente a él
-        if (file_exists($rutaCompleta)) {
-            return redirect(asset('tickets/' . $nombreArchivo));
-        }
-        
-        // Calcular totales con IVA
-        $lineas = [];
-        $subtotal = 0;
-        $totalIva = 0;
-        $ivaDesglose = [];
-        
-        // Añadir productos
-        foreach ($ficha->productos as $fp) {
-            if ($fp->producto) {
-                $iva = $fp->producto->iva ?? 21;
-                $pvp = $fp->precio; // El precio ya está multiplicado por la cantidad en FichaProducto
-                $precioUnitario = $fp->cantidad > 0 ? $fp->precio / $fp->cantidad : $fp->precio;
-                $baseImponible = $pvp / (1 + $iva / 100);
-                $importeIva = $pvp - $baseImponible;
-                
-                $lineas[] = [
-                    'tipo' => 'producto',
-                    'nombre' => $fp->producto->nombre,
-                    'cantidad' => $fp->cantidad,
-                    'precio_unitario' => $precioUnitario,
-                    'iva' => $iva,
-                    'total' => $pvp
-                ];
-                
-                $subtotal += $baseImponible;
-                $totalIva += $importeIva;
-                
-                $ivaKey = number_format($iva, 2);
-                if (!isset($ivaDesglose[$ivaKey])) {
-                    $ivaDesglose[$ivaKey] = [
-                        'porcentaje' => $iva,
-                        'base' => 0,
-                        'cuota' => 0
-                    ];
-                }
-                $ivaDesglose[$ivaKey]['base'] += $baseImponible;
-                $ivaDesglose[$ivaKey]['cuota'] += $importeIva;
-            }
-        }
-        
-        // Añadir servicios
-        foreach ($ficha->servicios as $fs) {
-            if ($fs->servicio) {
-                $iva = $fs->servicio->iva ?? 21;
-                $pvp = $fs->precio;
-                $baseImponible = $pvp / (1 + $iva / 100);
-                $importeIva = $pvp - $baseImponible;
-                
-                $lineas[] = [
-                    'tipo' => 'servicio',
-                    'nombre' => $fs->servicio->nombre,
-                    'cantidad' => 1,
-                    'precio_unitario' => $fs->precio,
-                    'iva' => $iva,
-                    'total' => $pvp
-                ];
-                
-                $subtotal += $baseImponible;
-                $totalIva += $importeIva;
-                
-                $ivaKey = number_format($iva, 2);
-                if (!isset($ivaDesglose[$ivaKey])) {
-                    $ivaDesglose[$ivaKey] = [
-                        'porcentaje' => $iva,
-                        'base' => 0,
-                        'cuota' => 0
-                    ];
-                }
-                $ivaDesglose[$ivaKey]['base'] += $baseImponible;
-                $ivaDesglose[$ivaKey]['cuota'] += $importeIva;
-            }
-        }
-        
-        // Añadir gastos
-        foreach ($ficha->gastos as $fg) {
-            $iva = 21; // IVA por defecto para gastos
-            $pvp = $fg->precio;
-            $baseImponible = $pvp / (1 + $iva / 100);
-            $importeIva = $pvp - $baseImponible;
-            
-            $lineas[] = [
-                'tipo' => 'gasto',
-                'nombre' => $fg->descripcion ?? 'Gasto',
-                'cantidad' => 1,
-                'precio_unitario' => $fg->precio,
-                'iva' => $iva,
-                'total' => $pvp
-            ];
-            
-            $subtotal += $baseImponible;
-            $totalIva += $importeIva;
-            
-            $ivaKey = number_format($iva, 2);
-            if (!isset($ivaDesglose[$ivaKey])) {
-                $ivaDesglose[$ivaKey] = [
-                    'porcentaje' => $iva,
-                    'base' => 0,
-                    'cuota' => 0
-                ];
-            }
-            $ivaDesglose[$ivaKey]['base'] += $baseImponible;
-            $ivaDesglose[$ivaKey]['cuota'] += $importeIva;
-        }
-        
-        $total = $subtotal + $totalIva;
-        $site = app('site');
-        
-        // Generar PDF usando dompdf
-        $pdf = PDF::loadView('fichas.ticket-pdf', compact('ficha', 'lineas', 'subtotal', 'totalIva', 'total', 'ivaDesglose', 'ajustes', 'site'));
-        
-        // Configurar ancho de ticket (80mm = 226.77 puntos)
-        $pdf->setPaper([0, 0, 226.77, 841.89], 'portrait');
-        
-        // Configurar opciones de dompdf
-        $pdf->getDomPDF()->set_option('isPhpEnabled', true);
-        
-        // Guardar el PDF en el servidor
-        $pdf->save($rutaCompleta);
-        
-        // Redirigir a la URL del PDF
-        return redirect(asset('tickets/' . $nombreArchivo));
-    }
-
-    /**
-     * Generar múltiples mesas automáticamente (solo usuarios tipo < 4)
-     */
-    public function generarMesas(Request $request)
-    {
-        // Verificar que el usuario tenga permisos (tipo < 4, es decir, no camareros)
-        if (!Auth::check() || Auth::user()->role_id >= 4) {
-            return redirect()->back()->with('error', __('No tienes permisos para crear mesas'));
-        }
-
-        $request->validate([
-            'cantidad' => 'required|integer|min:1|max:100',
-            'prefijo' => 'required|string|max:20'
-        ]);
-
-        $cantidad = $request->cantidad;
-        $prefijo = $request->prefijo;
-        
-        $mesasCreadas = 0;
-
-        try {
-            DB::beginTransaction();
-
-            for ($i = 1; $i <= $cantidad; $i++) {
-                $uuid = (string) Uuid::uuid4();
-                $descripcion = $prefijo . $i;
-
-                Ficha::create([
-                    'uuid' => $uuid,
-                    'descripcion' => $descripcion,
-                    'user_id' => Auth::id(),
-                    'precio' => 0,
-                    'invitados_grupo' => 0,
-                    'estado' => 0,
-                    'tipo' => 5, // Tipo 5 = Mesa
-                    'fecha' => Carbon::now()->format('Y-m-d'),
-                    'hora' => null,
-                    'menu' => null,
-                    'responsables' => null,
-                    'modo' => 'mesa',
-                    'numero_mesa' => $i,
-                    'estado_mesa' => 'libre',
-                    'camarero_id' => null,
-                    'numero_comensales' => 0,
-                    'hora_apertura' => null,
-                    'hora_cierre' => null
-                ]);
-
-                $mesasCreadas++;
-            }
-
-            DB::commit();
-
-            return redirect()->back()->with('success', __('Se han creado :cantidad mesas correctamente', ['cantidad' => $mesasCreadas]));
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return redirect()->back()->with('error', __('Error al crear las mesas: :error', ['error' => $e->getMessage()]));
-        }
-    }
-
-    /**
-     * Crear una mesa individual
-     */
-    public function crearMesaIndividual(Request $request)
-    {
-        // Verificar permisos
-        if (!Auth::check() || Auth::user()->role_id >= 4) {
-            return redirect()->back()->with('error', __('No tienes permisos para crear mesas'));
-        }
-
-        $request->validate([
-            'descripcion' => 'required|string|max:100',
-            'numero_mesa' => 'required|integer|min:1|max:999'
-        ]);
-
-        try {
-            $uuid = (string) Uuid::uuid4();
-
-            Ficha::create([
-                'uuid' => $uuid,
-                'descripcion' => $request->descripcion,
-                'user_id' => Auth::id(),
-                'precio' => 0,
-                'invitados_grupo' => 0,
-                'estado' => 0,
-                'tipo' => 5,
-                'fecha' => Carbon::now()->format('Y-m-d'),
-                'hora' => null,
-                'menu' => null,
-                'responsables' => null,
-                'modo' => 'mesa',
-                'numero_mesa' => $request->numero_mesa,
-                'estado_mesa' => 'libre',
-                'camarero_id' => null,
-                'numero_comensales' => 0,
-                'hora_apertura' => null,
-                'hora_cierre' => null
-            ]);
-
-            return redirect()->back()->with('success', __('Mesa creada correctamente'));
-
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', __('Error al crear la mesa: :error', ['error' => $e->getMessage()]));
-        }
-    }
-
-    /**
-     * Actualizar una mesa existente
-     */
-    public function actualizarMesa(Request $request, $mesaUuid)
-    {
-        // Verificar permisos
-        if (!Auth::check() || Auth::user()->role_id >= 4) {
-            return redirect()->back()->with('error', __('No tienes permisos para editar mesas'));
-        }
-
-    
-        $request->validate([
-            'descripcion' => 'required|string|max:100',
-            'numero_mesa' => 'required|integer|min:1|max:999',
-            'numero_comensales' => 'nullable|integer|min:1|max:50',
-            'observaciones' => 'nullable|string|max:255'
-        ]);
-
-        try {
-            $mesa = Ficha::findOrFail($mesaUuid);
-
-            // Verificar que es una mesa
-            if ($mesa->tipo != 5 || $mesa->modo != 'mesa') {
-                return redirect()->back()->with('error', __('Esta ficha no es una mesa'));
-            }
-
-            $mesa->update([
-                'descripcion' => $request->descripcion,
-                'numero_mesa' => $request->numero_mesa,
-                'numero_comensales' => $request->numero_comensales,
-                'observaciones' => $request->observaciones
-            ]);
-
-            return redirect()->back()->with('success', __('Mesa actualizada correctamente'));
-
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', __('Error al actualizar la mesa: :error', ['error' => $e->getMessage()]));
-        }
-    }
-
-    /**
-     * Eliminar una mesa (solo si está libre)
-     */
-    public function eliminarMesa($mesaUuid)
-    {
-        // Verificar permisos
-        if (!Auth::check() || Auth::user()->role_id >= 4) {
-            return redirect()->back()->with('error', __('No tienes permisos para eliminar mesas'));
-        }
-
-        try {
-            $mesa = Ficha::findOrFail($mesaUuid);
-
-            // Verificar que es una mesa
-            if ($mesa->tipo != 5 || $mesa->modo != 'mesa') {
-                return redirect()->back()->with('error', __('Esta ficha no es una mesa'));
-            }
-
-            // Verificar que está libre
-            if ($mesa->estado_mesa != 'libre') {
-                return redirect()->back()->with('error', __('Solo se pueden eliminar mesas en estado libre'));
-            }
-
-            // Verificar que no tiene productos/servicios asociados
-            if ($mesa->productos()->exists() || $mesa->servicios()->exists()) {
-                return redirect()->back()->with('error', __('No se puede eliminar una mesa con consumos registrados'));
-            }
-
-            $mesa->delete();
-
-            return redirect()->back()->with('success', __('Mesa eliminada correctamente'));
-
-        } catch (\Exception $e) {
-            return redirect()->back()->with('error', __('Error al eliminar la mesa: :error', ['error' => $e->getMessage()]));
-        }
-    }
-
-    /**
-     * Reordenar mesas mediante drag & drop
-     */
-    public function reordenarMesas(Request $request)
-    {
-        // Verificar permisos
-        if (!Auth::check() || Auth::user()->role_id >= 4) {
-            return response()->json(['success' => false, 'message' => __('No tienes permisos para reordenar mesas')], 403);
-        }
-
-        $request->validate([
-            'orden' => 'required|array',
-            'orden.*.uuid' => 'required|string',
-            'orden.*.orden' => 'required|integer|min:1'
-        ]);
-
-        try {
-            DB::beginTransaction();
-            
-            foreach ($request->orden as $item) {
-                Ficha::where('uuid', $item['uuid'])
-                    ->where('tipo', 5)
-                    ->where('modo', 'mesa')
-                    ->update(['orden' => $item['orden']]);
-            }
-            
-            DB::commit();
-            return response()->json(['success' => true, 'message' => __('Orden actualizado correctamente')]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-        }
-    }
-
     /**
      * Notifica a todos los usuarios básicos sobre un nuevo evento
      */
@@ -2625,7 +1590,7 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
             $firebase = app(\App\Services\FirebaseService::class);
             
             // Obtener todos los usuarios básicos (role_id >= 4) con token de Firebase
-            $usuariosBasicos = User::where('site_id', app('site')->id)
+            $usuariosBasicos = User::where('site_id', get_site()->id)
                 ->where('role_id', '>=', 4)
                 ->whereNotNull('fcm_token')
                 ->get();
@@ -2647,3 +1612,4 @@ if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
         }
     }
 }
+    

@@ -100,7 +100,11 @@ class ProductosController extends Controller
             'ean13' => $request->ean13,
             'iva' => $request->iva ?? 21
         ]);
+        
+        // 🚀 OPTIMIZACIÓN: Invalidar caché de productos
+        \Cache::forget("productos_familia_{$request->familia}");
         \Cache::forget('productos_menu');
+        
         return redirect()->route('productos.index')
             ->with('success', __('Producto creado con éxito.'));
     }
@@ -170,7 +174,12 @@ class ProductosController extends Controller
             'ean13' => $request->ean13,
             'iva' => $request->iva ?? 21
         ]);
+        
+        // 🚀 OPTIMIZACIÓN: Invalidar caché de productos (familia actual y anterior)
+        \Cache::forget("productos_familia_{$request->familia}");
+        \Cache::forget("productos_familia_{$producto->getOriginal('familia')}");
         \Cache::forget('productos_menu');
+        
         return redirect()->route('productos.index')
             ->with('success', __('Producto actualizado con éxito.'));
     }
@@ -181,12 +190,18 @@ class ProductosController extends Controller
     public function destroy(string $id)
     {
         $producto = Producto::find($id);
+        $familiaId = $producto->familia; // Guardar antes de borrar
+        
         if (File::exists(public_path('images') . '/'  . $producto->imagen)) {
             File::delete(public_path('images') . '/'  . $producto->imagen);
         }
         ComposicionProducto::where('id_producto', $id)->delete();
         $producto->delete();
+        
+        // 🚀 OPTIMIZACIÓN: Invalidar caché de productos
+        \Cache::forget("productos_familia_{$familiaId}");
         \Cache::forget('productos_menu');
+        
         return redirect()->route('productos.index')
             ->with('success', __('Producto eliminado con éxito'));
     }

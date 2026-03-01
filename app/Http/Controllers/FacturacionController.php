@@ -11,7 +11,7 @@ class FacturacionController extends Controller
 {
     public function index(Request $request)
     {
-        $site = app('site');
+        $site = get_site();
         $ajustes = \App\Models\Ajustes::first();
         $modoOperacion = $ajustes->modo_operacion ?? 'fichas';
         

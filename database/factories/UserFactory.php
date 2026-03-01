@@ -26,6 +26,11 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'image' => 'default-avatar.jpg',
+            'role_id' => 2, // Usuario regular por defecto
+            'phone_number' => fake()->phoneNumber(),
+            'site_id' => 1, // Site por defecto para testing
+            'locale' => 'es', // Español por defecto
         ];
     }
 

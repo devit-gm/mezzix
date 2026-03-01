@@ -70,7 +70,12 @@ class FamiliasController extends Controller
             'posicion' => $request->posicion,
             'mostrar_en_cocina' => $mostrarEnCocina
         ]);
+        
+        // 🚀 OPTIMIZACIÓN: Invalidar caché de familias
+        $site = get_site();
+        \Cache::forget("familias_site_{$site->uuid}");
         \Cache::forget('familias_grid_html');
+        
         return redirect()->route('familias.index')
             ->with('success', __('Familia creada con éxito.'));
     }
@@ -128,7 +133,12 @@ class FamiliasController extends Controller
             'posicion' => $request->posicion,
             'mostrar_en_cocina' => $mostrarEnCocina
         ]);
+        
+        // 🚀 OPTIMIZACIÓN: Invalidar caché de familias
+        $site = get_site();
+        \Cache::forget("familias_site_{$site->uuid}");
         \Cache::forget('familias_grid_html');
+        
         return redirect()->route('familias.index')
             ->with('success', __('Familia actualizada con éxito.'));
     }
@@ -143,7 +153,12 @@ class FamiliasController extends Controller
             File::delete(public_path('images') . '/'  . $familia->imagen);
         }
         $familia->delete();
+        
+        // 🚀 OPTIMIZACIÓN: Invalidar caché de familias
+        $site = get_site();
+        \Cache::forget("familias_site_{$site->uuid}");
         \Cache::forget('familias_grid_html');
+        
         return redirect()->route('familias.index')
             ->with('success', __('Familia eliminada con éxito'));
     }
