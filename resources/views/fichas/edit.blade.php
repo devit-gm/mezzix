@@ -2,9 +2,9 @@
 
 @section('content')
 @php
-    $modoOperacion = $ajustes->modo_operacion ?? 'fichas';
-    $esAgenciaEventos = ($modoOperacion === 'agencia_eventos');
-    $rutaPrefix = $esAgenciaEventos ? 'eventos.gestion' : 'fichas';
+$modoOperacion = $ajustes->modo_operacion ?? 'fichas';
+$esAgenciaEventos = ($modoOperacion === 'agencia_eventos');
+$rutaPrefix = $esAgenciaEventos ? 'eventos.gestion' : 'fichas';
 @endphp
 
 <div class="container-fluid h-100">
@@ -32,26 +32,26 @@
                                 </div>
                                 @endif
                                 <input type="hidden" name="user_id" value="{{ $ficha->user_id }}" />
-                                
+
                                 @if($esAgenciaEventos)
                                 <!-- Modo Agencia de Eventos -->
                                 <input type="hidden" name="tipo" value="4" />
-                                
+
                                 <div class="form-group mb-3 required">
                                     <label for="fecha" class="fw-bold form-label">{{ __('Fecha') }}:</label><br>
                                     <input type="date" id="fecha" name="fecha" value="{{ $fechaCambiada }}" @if($ficha->estado == 1) disabled @endif required>
                                 </div>
-                                
+
                                 <div class="form-group mb-3">
                                     <label for="hora" class="fw-bold">{{ __('Hora') }}:</label><br>
-                                    <input type="time" id="hora" name="hora" value="{{ $ficha->hora }}" @if($ficha->estado == 1) disabled @endif>
+                                    <input type="time" id="hora" name="hora" value="{{ old('hora', \Illuminate\Support\Str::of($ficha->hora)->substr(0, 5)) }}" @if($ficha->estado == 1) disabled @endif>
                                 </div>
-                                
+
                                 <div class="form-group mb-3 required">
                                     <label for="descripcion" class="fw-bold form-label">{{ __('Nombre del evento') }}</label>
                                     <input type="text" class="form-control" id="descripcion" name="descripcion" value="{{ $ficha->descripcion }}" @if($ficha->estado == 1) disabled @endif required>
                                 </div>
-                                
+
                                 <div class="form-group mb-3">
                                     <label for="descripcion_evento" class="fw-bold form-label">{{ __('Descripción del evento') }}</label>
                                     <textarea class="form-control" id="descripcion_evento" name="descripcion_evento" rows="8" @if($ficha->estado == 1) disabled @endif>{{ $ficha->descripcion_evento }}</textarea>
@@ -63,7 +63,7 @@
                                     <input type="text" class="form-control" id="ubicacion_evento" name="ubicacion_evento" value="{{ $ficha->ubicacion_evento }}" maxlength="255" placeholder="{{ __('Ej: Salón Principal, Calle Mayor 123, etc.') }}" @if($ficha->estado == 1) disabled @endif>
                                     <small class="form-text text-muted">{{ __('Dónde se realizará el evento') }}</small>
                                 </div>
-                                
+
                                 <div class="form-group mb-3">
                                     <label for="foto_evento" class="fw-bold form-label">{{ __('Foto del evento') }}</label>
                                     @if($ficha->foto_evento)
@@ -75,7 +75,7 @@
                                     <div class="input-group">
                                         <input type="text" class="form-control" id="file-name-foto" readonly placeholder="{{ __('Ningún archivo seleccionado') }}" @if($ficha->estado == 1) disabled @endif>
                                         <label for="foto_evento" class="btn btn-outline-secondary" style="cursor: pointer;" @if($ficha->estado == 1) onclick="return false;" @endif>
-                                            <i class="bi bi-upload"></i> 
+                                            <i class="bi bi-upload"></i>
                                         </label>
                                         <button type="button" class="btn btn-outline-danger" id="clear-foto" style="display: none;" onclick="clearImageSelection('foto_evento', 'file-name-foto', 'preview-foto')" @if($ficha->estado == 1) disabled @endif>
                                             <i class="bi bi-x"></i>
@@ -87,7 +87,7 @@
                                         <img src="" alt="Preview" class="img-thumbnail" style="max-height: 200px; max-width: 100%;">
                                     </div>
                                 </div>
-                                
+
                                 <div class="row">
                                     <div class="col-md-6 form-group mb-3">
                                         <label for="aforo_maximo" class="fw-bold form-label">{{ __('Aforo máximo') }}</label>
@@ -99,12 +99,12 @@
                                         <input type="number" class="form-control" id="inscritos_actuales" value="{{ $ficha->inscritos_actuales }}" disabled>
                                     </div>
                                 </div>
-                                
+
                                 <div class="form-group mb-3">
                                     <label for="precio" class="fw-bold form-label">{{ __('Precio') }}</label>
                                     <input type="number" class="form-control" id="precio" name="precio" step="0.01" min="0" value="{{ $ficha->precio }}" @if($ficha->estado == 1) disabled @endif>
                                 </div>
-                                
+
                                 <div class="form-group mb-3 required">
                                     <label for="estado" class="fw-bold form-label">{{ __('Estado') }}</label>
                                     <select name="estado" id="estado" class="form-select form-select-sm" aria-label=".form-select-sm example" required @if($ficha->estado == 1) disabled @endif>
@@ -112,9 +112,9 @@
                                         <option value="1" @if($ficha->estado == '1') selected @endif>{{ __('Cerrado') }}</option>
                                     </select>
                                 </div>
-                                
+
                                 <input type="hidden" name="invitados_grupo" value="0" />
-                                
+
                                 @else
                                 <!-- Modo Fichas normal -->
                                 <div class="form-group mb-3 required">
@@ -126,17 +126,17 @@
                                         <option value="4" @if($ficha->tipo == 4) selected @endif>{{ __('Evento') }}</option>
                                     </select>
                                 </div>
-                                
+
                                 <div class="form-group mb-3">
                                     <label for="descripcion" class="fw-bold form-label">{{ __('Nombre') }}</label>
                                     <input type="text" class="form-control" id="descripcion" name="descripcion" value="{{ $ficha->descripcion }}" @if($ficha->estado == 1) disabled @endif>
                                 </div>
-                                
+
                                 <div class="form-group mb-3 required">
                                     <label for="fecha" class="fw-bold form-label">{{ __('Fecha') }}:</label><br>
                                     <input type="date" id="fecha" name="fecha" value="{{ $fechaCambiada }}" @if($ficha->estado == 1) disabled @endif>
                                 </div>
-                                
+
                                 <div class="form-group mb-3 required">
                                     <label for="estado" class="fw-bold form-label">{{ __('Estado') }}</label>
                                     <select name="estado" id="estado" class="form-select form-select-sm" aria-label=".form-select-sm example" required @if($ficha->estado == 1) disabled @endif>
@@ -144,7 +144,7 @@
                                         <option value="1" @if($ficha->estado == '1') selected @endif>{{ __('Cerrada') }}</option>
                                     </select>
                                 </div>
-                                
+
                                 @if($ficha->tipo == 2)
                                 <div class="form-group mb-3">
                                     <label for="invitados_grupo" class="fw-bold form-label">{{ __('Invitados grupo') }}</label>
@@ -156,15 +156,15 @@
 
                                 <div class="form-group mb-3">
                                     <label for="hora" class="fw-bold">{{ __('Hora') }}:</label><br>
-                                    <input type="time" id="hora" name="hora" value="{{ $ficha->hora }}">
+                                    <input type="time" id="hora" name="hora" value="{{ old('hora', \Illuminate\Support\Str::of($ficha->hora)->substr(0, 5)) }}">
                                     <small class="form-text text-muted">{{ __('Sólo para la edición de eventos') }}</small>
                                 </div>
-                                
+
                                 <div class="form-group mb-3">
                                     <label for="menu" class="fw-bold">{{ __('Menú') }}:</label><br>
                                     <input type="text" class="form-control" id="menu" name="menu" value="{{ $ficha->menu }}">
                                 </div>
-                                
+
                                 <div class="form-group mb-3">
                                     <label for="responsables" class="fw-bold">{{ __('Responsable/s') }}:</label><br>
                                     <input type="text" class="form-control" id="responsables" name="responsables" value="{{ $ficha->responsables }}">
@@ -178,93 +178,96 @@
                         </div>
                     </div>
                 </div>
-			
+
             </div>
         </div>
     </div>
 </div>
 @endsection
 
-	@section('footer')
+@section('footer')
 
-                <div class="card-footer">
-                    <form action="{{ route('fichas.destroy', ['uuid'=>$ficha->uuid]) }}" method="post">
-                        <div class="d-flex align-items-center justify-content-center">
+<div class="card-footer">
+    <form action="{{ route('fichas.destroy', ['uuid'=>$ficha->uuid]) }}" method="post">
+        <div class="d-flex align-items-center justify-content-center">
 
-                            <a class="btn btn-dark mx-1" href={{ route($rutaPrefix . '.index') }}><i class="bi bi-chevron-left"></i></a>
-                            @if(!$esAgenciaEventos)
-                            <a href="{{ route('fichas.familias', ['uuid'=>$ficha->uuid]) }}" title="{{ __('Ver contenido de la ficha') }}" class="btn btn-info mx-1 my-1"><i class="bi bi-cup-straw"></i></a>
-                            @endif
+            <a class="btn btn-dark mx-1" href={{ route($rutaPrefix . '.index') }}><i class="bi bi-chevron-left"></i></a>
+            @if(!$esAgenciaEventos)
+            <a href="{{ route('fichas.familias', ['uuid'=>$ficha->uuid]) }}" title="{{ __('Ver contenido de la ficha') }}" class="btn btn-info mx-1 my-1"><i class="bi bi-cup-straw"></i></a>
+            @endif
 
 
-                            @if($ficha->estado == 0)
-                            <button type="button" class="btn btn-success mx-1" onclick="document.getElementById('editar-ficha').submit();"><i class="bi bi-floppy"></i></button>
-                            @endif
+            @if($ficha->estado == 0)
+            <button type="button" class="btn btn-success mx-1" onclick="document.getElementById('editar-ficha').submit();"><i class="bi bi-floppy"></i></button>
+            @endif
 
-                            @if ($ficha->borrable == 1)
+            @if ($ficha->borrable == 1)
 
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn btn-danger mx-1" onclick="return confirm('{{ __('¿Está seguro de eliminar la ficha?') }}');"><i class="bi bi-trash"></i></button>
+            @csrf
+            @method('DELETE')
+            <button type="submit" class="btn btn-danger mx-1" onclick="return confirm('{{ __('¿Está seguro de eliminar la ficha?') }}');"><i class="bi bi-trash"></i></button>
 
-                            @endif
-                        </div>
-                    </form>
-                </div>
+            @endif
+        </div>
+    </form>
+</div>
 @endsection
 
 @push('scripts')
 <script>
-function handleImageSelection(input, inputId, previewId, clearBtnId) {
-    const fileNameInput = document.getElementById(inputId);
-    const previewContainer = document.getElementById(previewId);
-    const clearBtn = document.getElementById(clearBtnId);
-    
-    if (input.files && input.files[0]) {
-        const file = input.files[0];
-        
-        // Validar tipo de archivo
-        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-        if (!validTypes.includes(file.type)) {
-            alert('{{ __('Por favor selecciona una imagen válida (JPG, PNG o WEBP)') }}');
-            input.value = '';
-            return;
-        }
-        
-        // Validar tamaño (2MB)
-        if (file.size > 2 * 1024 * 1024) {
-            alert('{{ __('La imagen no debe superar los 2MB') }}');
-            input.value = '';
-            return;
-        }
-        
-        // Mostrar nombre del archivo
-        fileNameInput.value = file.name;
-        
-        // Mostrar preview
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const img = previewContainer.querySelector('img');
-            img.src = e.target.result;
-            previewContainer.style.display = 'block';
-        };
-        reader.readAsDataURL(file);
-        
-        // Mostrar botón limpiar
-        if (clearBtn) clearBtn.style.display = 'inline-block';
-    }
-}
+    function handleImageSelection(input, inputId, previewId, clearBtnId) {
+        const fileNameInput = document.getElementById(inputId);
+        const previewContainer = document.getElementById(previewId);
+        const clearBtn = document.getElementById(clearBtnId);
 
-function clearImageSelection(inputId, fileNameId, previewId) {
-    const input = document.getElementById(inputId);
-    const fileNameInput = document.getElementById(fileNameId);
-    const previewContainer = document.getElementById(previewId);
-    const clearBtn = document.getElementById('clear-foto');
-    
-    input.value = '';
-    fileNameInput.value = '';
-    previewContainer.style.display = 'none';
-    if (clearBtn) clearBtn.style.display = 'none';
-}
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+
+            // Validar tipo de archivo
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+            if (!validTypes.includes(file.type)) {
+                alert('{{ __('
+                    Por favor selecciona una imagen válida(JPG, PNG o WEBP)
+                    ') }}');
+                input.value = '';
+                return;
+            }
+
+            // Validar tamaño (2MB)
+            if (file.size > 2 * 1024 * 1024) {
+                alert('{{ __('
+                    La imagen no debe superar los 2 MB ') }}');
+                input.value = '';
+                return;
+            }
+
+            // Mostrar nombre del archivo
+            fileNameInput.value = file.name;
+
+            // Mostrar preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = previewContainer.querySelector('img');
+                img.src = e.target.result;
+                previewContainer.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+
+            // Mostrar botón limpiar
+            if (clearBtn) clearBtn.style.display = 'inline-block';
+        }
+    }
+
+    function clearImageSelection(inputId, fileNameId, previewId) {
+        const input = document.getElementById(inputId);
+        const fileNameInput = document.getElementById(fileNameId);
+        const previewContainer = document.getElementById(previewId);
+        const clearBtn = document.getElementById('clear-foto');
+
+        input.value = '';
+        fileNameInput.value = '';
+        previewContainer.style.display = 'none';
+        if (clearBtn) clearBtn.style.display = 'none';
+    }
 </script>
 @endpush

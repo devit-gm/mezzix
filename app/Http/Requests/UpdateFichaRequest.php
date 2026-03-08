@@ -36,7 +36,7 @@ class UpdateFichaRequest extends FormRequest
         if ($this->input('tipo') == 4 || $modoAgenciaEventos) {
             $rules['precio'] = 'nullable|numeric|min:0';
             $rules['ubicacion_evento'] = 'nullable|string|max:255';
-            $rules['aforo_maximo'] = 'required|integer|min:1|max:10000';
+            $rules['aforo_maximo'] = 'nullable|integer|min:1|max:10000';
             $rules['foto_evento'] = 'nullable|image|mimes:jpeg,jpg,png,webp|max:2048';
             $rules['descripcion_evento'] = 'nullable|string|max:1000';
         }
@@ -57,12 +57,29 @@ class UpdateFichaRequest extends FormRequest
             'tipo.in' => 'El tipo de ficha seleccionado no es válido.',
             'precio.numeric' => 'El precio debe ser un número.',
             'precio.min' => 'El precio no puede ser negativo.',
-            'aforo_maximo.required' => 'El aforo máximo es obligatorio para eventos.',
             'aforo_maximo.min' => 'El aforo máximo debe ser al menos 1.',
             'aforo_maximo.max' => 'El aforo máximo no puede superar 10000.',
             'foto_evento.image' => 'El archivo debe ser una imagen.',
             'foto_evento.mimes' => 'La imagen debe ser formato: jpeg, jpg, png o webp.',
             'foto_evento.max' => 'La imagen no puede superar 2MB.',
         ];
+    }
+
+    /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        $hora = $this->input('hora');
+        if (is_string($hora) && $hora !== '') {
+            $horaNormalizada = trim($hora);
+            if (preg_match('/^\d{2}:\d{2}:\d{2}$/', $horaNormalizada)) {
+                $horaNormalizada = substr($horaNormalizada, 0, 5);
+            }
+
+            $this->merge([
+                'hora' => $horaNormalizada
+            ]);
+        }
     }
 }
