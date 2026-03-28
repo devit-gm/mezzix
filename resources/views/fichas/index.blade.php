@@ -2,17 +2,17 @@
 
 @section('content')
 @php
-    $modoOperacion = $ajustes->modo_operacion ?? 'fichas';
-    $esAgenciaEventos = ($modoOperacion === 'agencia_eventos');
-    
-    // Definir prefijo de rutas según el modo
-    $rutaPrefix = $esAgenciaEventos ? 'eventos.gestion' : 'fichas';
+$modoOperacion = $ajustes->modo_operacion ?? 'fichas';
+$esAgenciaEventos = ($modoOperacion === 'agencia_eventos');
+
+// Definir prefijo de rutas según el modo
+$rutaPrefix = $esAgenciaEventos ? 'eventos.gestion' : 'fichas';
 @endphp
 <div class="container-fluid h-100">
     <div class="row justify-content-center h-100">
         <div class="col-md-12 col-sm-12 col-lg-12 d-flex h-100">
             <div class="card flex-fill d-flex flex-column">
-                <div class="card-header fondo-rojo"><i class="bi bi-receipt"></i> 
+                <div class="card-header fondo-rojo"><i class="bi bi-receipt"></i>
                     @if($request->incluir_cerradas == 0)
                     @if($esAgenciaEventos)
                     {{ __('EVENTOS ACTIVOS') }}
@@ -28,7 +28,8 @@
                     {{ __('FICHAS CERRADAS') }}
                     @endif
                     @endif
-                    @endif</div>
+                    @endif
+                </div>
 
                 <div class="card-body overflow-auto flex-fill">
                     <div class="container-fluid">
@@ -54,6 +55,25 @@
                                     @endif
                                     @endif
 
+                                    @php
+                                    $limiteActual = $limiteCerradas ?? (int) request('limite_cerradas', 20);
+                                    @endphp
+                                    <input type="hidden" id="limite-cerradas-hidden" name="limite_cerradas" value="{{ $limiteActual }}" />
+
+                                    @if(($request->incluir_cerradas ?? 0) == 1)
+                                    <div class="mb-3 p-2 border rounded bg-light d-flex flex-wrap align-items-center gap-2">
+                                        <span class="small text-muted">{{ __('Mostrando últimas') }}</span>
+                                        <select id="limite-cerradas" class="form-select form-select-sm" style="width: 110px;" onchange="document.getElementById('limite-cerradas-hidden').value=this.value; document.getElementById('realizar-busqueda').submit();">
+                                            <option value="20" @if($limiteActual==20) selected @endif>20</option>
+                                            <option value="50" @if($limiteActual==50) selected @endif>50</option>
+                                            <option value="80" @if($limiteActual==80) selected @endif>80</option>
+                                            <option value="120" @if($limiteActual==120) selected @endif>120</option>
+                                            <option value="200" @if($limiteActual==200) selected @endif>200</option>
+                                            <option value="300" @if($limiteActual==300) selected @endif>300</option>
+                                        </select>
+                                    </div>
+                                    @endif
+
                                     @if ($errors->any())
                                     <div class="custom-error-container" id="custom-error-container">
                                         <ul class="custom-error-list">
@@ -75,31 +95,31 @@
                                     @foreach ($fichas as $ficha)
                                     @php
                                     $esUsuarioBasico = Auth::user()->role_id >= \App\Enums\Role::USUARIO_MESAS;
-                                    
+
                                     // Usar la información ya calculada en el controlador
                                     $estaInscrito = ($esAgenciaEventos && $ficha->tipo == 4 && isset($ficha->apuntado));
-                                    
+
                                     if ($esAgenciaEventos) {
-                                        // En modo agencia, usuarios básicos van al detalle público
-                                        if ($esUsuarioBasico) {
-                                            $ruta = route('eventos-publicos.show', ['uuid' => $ficha->uuid]);
-                                        } else {
-                                            // Administradores van a editar
-                                            $ruta = route('eventos-publicos.show', ['uuid' => $ficha->uuid]);
-                                        }
+                                    // En modo agencia, usuarios básicos van al detalle público
+                                    if ($esUsuarioBasico) {
+                                    $ruta = route('eventos-publicos.show', ['uuid' => $ficha->uuid]);
                                     } else {
-                                        // Lógica original para modo fichas
-                                        if ($ficha->tipo != 3) {
-                                            $ruta = route('fichas.familias', ['uuid' => $ficha->uuid]);
-                                        } else {
-                                            $ruta = route('fichas.gastos', ['uuid' => $ficha->uuid]);
-                                        }
-                                        if($ficha->estado == 1 && $ficha->tipo != 3){
-                                            $ruta = route('fichas.lista', ['uuid' => $ficha->uuid]);
-                                        }
-                                        if($ficha->tipo == 4){
-                                            $ruta = route('fichas.usuarios', ['uuid' => $ficha->uuid]);
-                                        }
+                                    // Administradores van a editar
+                                    $ruta = route('eventos-publicos.show', ['uuid' => $ficha->uuid]);
+                                    }
+                                    } else {
+                                    // Lógica original para modo fichas
+                                    if ($ficha->tipo != 3) {
+                                    $ruta = route('fichas.familias', ['uuid' => $ficha->uuid]);
+                                    } else {
+                                    $ruta = route('fichas.gastos', ['uuid' => $ficha->uuid]);
+                                    }
+                                    if($ficha->estado == 1 && $ficha->tipo != 3){
+                                    $ruta = route('fichas.lista', ['uuid' => $ficha->uuid]);
+                                    }
+                                    if($ficha->tipo == 4){
+                                    $ruta = route('fichas.usuarios', ['uuid' => $ficha->uuid]);
+                                    }
                                     }
                                     @endphp
                                     <table class="table table-bordered table-responsive">
@@ -108,11 +128,11 @@
                                             <tr>
                                                 <td colspan="3" class="align-middle">
                                                     @if($ficha->tipo == 4 && $ficha->apuntado)
-                                                        <div style="float:right">
-                                                            <i class="bi bi-calendar-check-fill color-rojo" style="font-size:1.1em;"></i>
-                                                            <i class="bi bi-person-standing" style="margin-right: 0.1em;"></i>{{$ficha->apuntado->invitados}} 
-                                                            <i class="bi bi-person-fill" style="margin-right: 0.1em;"></i>{{$ficha->apuntado->ninos}}          
-                                                        </div>
+                                                    <div style="float:right">
+                                                        <i class="bi bi-calendar-check-fill color-rojo" style="font-size:1.1em;"></i>
+                                                        <i class="bi bi-person-standing" style="margin-right: 0.1em;"></i>{{$ficha->apuntado->invitados}}
+                                                        <i class="bi bi-person-fill" style="margin-right: 0.1em;"></i>{{$ficha->apuntado->ninos}}
+                                                    </div>
                                                     @endif
                                                     <b>{{ $ficha->descripcion }}</b>
                                                 </td>
@@ -164,62 +184,62 @@
                                                     @endif
                                                     @endif
                                                     @if ($ficha->tipo == 1)
-                                                            <span class="badge-tipo individual">
-                                                                <i class="bi bi-person-fill"></i>
-                                                                {{ __('Individual') }}
-                                                            </span>
+                                                    <span class="badge-tipo individual">
+                                                        <i class="bi bi-person-fill"></i>
+                                                        {{ __('Individual') }}
+                                                    </span>
 
-                                                        @elseif($ficha->tipo == 2)
-                                                            <div>
-                                                                <i class="bi bi-people-fill"></i> {{ $ficha->total_comensales }}
-                                                                <i class="bi bi-person-standing"></i> {{ $ficha->total_comensales - $ficha->total_ninos }}
-                                                                <i class="bi bi-person-fill"></i> {{ $ficha->total_ninos }}
-                                                            </div>
-                                                            <span class="badge-tipo conjunta">
-                                                                <i class="bi bi-people-fill"></i>
-                                                                {{ __('Conjunta') }}
-                                                            </span>
+                                                    @elseif($ficha->tipo == 2)
+                                                    <div>
+                                                        <i class="bi bi-people-fill"></i> {{ $ficha->total_comensales }}
+                                                        <i class="bi bi-person-standing"></i> {{ $ficha->total_comensales - $ficha->total_ninos }}
+                                                        <i class="bi bi-person-fill"></i> {{ $ficha->total_ninos }}
+                                                    </div>
+                                                    <span class="badge-tipo conjunta">
+                                                        <i class="bi bi-people-fill"></i>
+                                                        {{ __('Conjunta') }}
+                                                    </span>
 
-                                                        @elseif($ficha->tipo == 3)
-                                                            <span class="badge-tipo compra">
-                                                                <i class="bi bi-cart"></i>
-                                                                {{ __('Compra') }}
-                                                            </span>
+                                                    @elseif($ficha->tipo == 3)
+                                                    <span class="badge-tipo compra">
+                                                        <i class="bi bi-cart"></i>
+                                                        {{ __('Compra') }}
+                                                    </span>
 
-                                                        @elseif($ficha->tipo == 4)
-                                                            @if($esAgenciaEventos)
-                                                                {{-- Vista para eventos en modo agencia: mostrar precio e inscritos --}}
-                                                                <div class="text-muted" style="font-size: 1em;">
-                                                                    @if($ficha->precio && $ficha->precio > 0)
-                                                                        <strong>{{ number_format($ficha->precio, 2) }} €</strong>
-                                                                    @else
-                                                                        <strong>{{ __('Gratuito') }}</strong>
-                                                                    @endif
-                                                                </div>
-
-                                                                <div class="mb-1">
-                                                                    <i class="bi bi-people-fill"></i> 
-                                                                    <strong>{{ $ficha->inscritos_actuales ?? 0 }}</strong> / {{ $ficha->aforo_maximo ?? 0 }} {{ __('inscritos') }}
-                                                                </div>
-
-                                                                @if($ficha->ubicacion_evento)
-                                                                <div class="text-muted small">
-                                                                    <i class="bi bi-geo-alt-fill"></i> {{ $ficha->ubicacion_evento }}
-                                                                </div>
-                                                                @endif
-                                                            @else
-                                                                {{-- Vista para modo fichas normal --}}
-                                                                <div>
-                                                                    <i class="bi bi-people-fill"></i> {{ $ficha->total_comensales }}
-                                                                    <i class="bi bi-person-standing"></i> {{ $ficha->total_comensales - $ficha->total_ninos }}
-                                                                    <i class="bi bi-person-fill"></i> {{ $ficha->total_ninos }}
-                                                                </div>
-                                                                <span class="badge-tipo evento">
-                                                                    <i class="bi bi-calendar-event"></i>
-                                                                    {{ __('Evento') }}
-                                                                </span>
-                                                            @endif
+                                                    @elseif($ficha->tipo == 4)
+                                                    @if($esAgenciaEventos)
+                                                    {{-- Vista para eventos en modo agencia: mostrar precio e inscritos --}}
+                                                    <div class="text-muted" style="font-size: 1em;">
+                                                        @if($ficha->precio && $ficha->precio > 0)
+                                                        <strong>{{ number_format($ficha->precio, 2) }} €</strong>
+                                                        @else
+                                                        <strong>{{ __('Gratuito') }}</strong>
                                                         @endif
+                                                    </div>
+
+                                                    <div class="mb-1">
+                                                        <i class="bi bi-people-fill"></i>
+                                                        <strong>{{ $ficha->inscritos_actuales ?? 0 }}</strong> / {{ $ficha->aforo_maximo ?? 0 }} {{ __('inscritos') }}
+                                                    </div>
+
+                                                    @if($ficha->ubicacion_evento)
+                                                    <div class="text-muted small">
+                                                        <i class="bi bi-geo-alt-fill"></i> {{ $ficha->ubicacion_evento }}
+                                                    </div>
+                                                    @endif
+                                                    @else
+                                                    {{-- Vista para modo fichas normal --}}
+                                                    <div>
+                                                        <i class="bi bi-people-fill"></i> {{ $ficha->total_comensales }}
+                                                        <i class="bi bi-person-standing"></i> {{ $ficha->total_comensales - $ficha->total_ninos }}
+                                                        <i class="bi bi-person-fill"></i> {{ $ficha->total_ninos }}
+                                                    </div>
+                                                    <span class="badge-tipo evento">
+                                                        <i class="bi bi-calendar-event"></i>
+                                                        {{ __('Evento') }}
+                                                    </span>
+                                                    @endif
+                                                    @endif
 
                                                     @if(!$esAgenciaEventos)
                                                     <br />
@@ -232,51 +252,51 @@
 
                                                 </td>
                                                 @php
-                                                    $esUsuarioNormal = Auth::user()->role_id >= \App\Enums\Role::USUARIO_MESAS;
-                                                    $esCreadorFicha = Auth::id() == $ficha->user_id;
-                                                    $puedeEditarFicha = !$esUsuarioNormal || $esCreadorFicha;
-                                                    
-                                                    // Determinar si hay botones para mostrar
-                                                    $mostrarCelda = false;
-                                                    if ($ficha->estado == 0) {
-                                                        if ($esAgenciaEventos) {
-                                                            $mostrarCelda = true; // Siempre mostrar en agencia
-                                                        } elseif ($puedeEditarFicha && $ficha->borrable) {
-                                                            $mostrarCelda = true;
-                                                        }
-                                                    } elseif (!$esAgenciaEventos) {
-                                                        $mostrarCelda = true; // Ticket
-                                                    }
+                                                $esUsuarioNormal = Auth::user()->role_id >= \App\Enums\Role::USUARIO_MESAS;
+                                                $esCreadorFicha = Auth::id() == $ficha->user_id;
+                                                $puedeEditarFicha = !$esUsuarioNormal || $esCreadorFicha;
+
+                                                // Determinar si hay botones para mostrar
+                                                $mostrarCelda = false;
+                                                if ($ficha->estado == 0) {
+                                                if ($esAgenciaEventos) {
+                                                $mostrarCelda = true; // Siempre mostrar en agencia
+                                                } elseif ($puedeEditarFicha && $ficha->borrable) {
+                                                $mostrarCelda = true;
+                                                }
+                                                } elseif (!$esAgenciaEventos) {
+                                                $mostrarCelda = true; // Ticket
+                                                }
                                                 @endphp
                                                 @if($mostrarCelda)
                                                 <td class="align-middle text-center" style="width: 50px">
                                                     <div class="d-flex justify-content-center" style="flex-direction: column;">
                                                         @if ($ficha->estado == 0)
-                                                            @if($esAgenciaEventos)
-                                                                @if($esUsuarioBasico)
-                                                                    {{-- Botón de ver detalle con indicador de inscripción --}}
-                                                                    <div class="d-flex align-items-center justify-content-center gap-1">
-                                                                        <a class="btn btn-sm btn-primary" href="{{ $ruta }}"><i class="bi bi-eye fs-5"></i></a>
-                                                                        @if($estaInscrito)
-                                                                            <i class="bi bi-check-circle-fill text-success fs-4"></i>
-                                                                        @endif
-                                                                    </div>
-                                                                @else
-                                                                    {{-- Botones de editar/borrar para administradores --}}
-                                                                    <a class="btn btn-sm btn-dark mb-2" href="{{ route($rutaPrefix . '.edit', ['uuid' => $ficha->uuid]) }}"><i class="bi bi-pencil fs-5"></i></a>
-                                                                    @if($ficha->borrable)
-                                                                        <a class="btn btn-sm btn-danger" href="#" onclick="triggerParentClick(event,this);"><i class="bi bi-trash fs-5"></i></a>
-                                                                    @endif
-                                                                @endif
-                                                            @elseif($puedeEditarFicha && $ficha->borrable)
-                                                                {{-- Modo fichas normal: editar y borrar solo si es admin o creador --}}
-                                                                <a class="btn btn-sm btn-dark mb-2" href="{{ route($rutaPrefix . '.edit', ['uuid' => $ficha->uuid]) }}"><i class="bi bi-pencil fs-5"></i></a>
-                                                                <a class="btn btn-sm btn-danger" href="#" onclick="triggerParentClick(event,this);"><i class="bi bi-trash fs-5"></i></a>
+                                                        @if($esAgenciaEventos)
+                                                        @if($esUsuarioBasico)
+                                                        {{-- Botón de ver detalle con indicador de inscripción --}}
+                                                        <div class="d-flex align-items-center justify-content-center gap-1">
+                                                            <a class="btn btn-sm btn-primary" href="{{ $ruta }}"><i class="bi bi-eye fs-5"></i></a>
+                                                            @if($estaInscrito)
+                                                            <i class="bi bi-check-circle-fill text-success fs-4"></i>
                                                             @endif
+                                                        </div>
                                                         @else
-                                                            @if(!$esAgenciaEventos)
-                                                            <a class="btn btn-sm btn-success mb-2" href="{{ route('fichas.ticket', ['uuid' => $ficha->uuid]) }}" title="{{ __('Descargar Ticket') }}"><i class="bi bi-receipt"></i></a>
-                                                            @endif
+                                                        {{-- Botones de editar/borrar para administradores --}}
+                                                        <a class="btn btn-sm btn-dark mb-2" href="{{ route($rutaPrefix . '.edit', ['uuid' => $ficha->uuid]) }}"><i class="bi bi-pencil fs-5"></i></a>
+                                                        @if($ficha->borrable)
+                                                        <a class="btn btn-sm btn-danger" href="#" onclick="triggerParentClick(event,this);"><i class="bi bi-trash fs-5"></i></a>
+                                                        @endif
+                                                        @endif
+                                                        @elseif($puedeEditarFicha && $ficha->borrable)
+                                                        {{-- Modo fichas normal: editar y borrar solo si es admin o creador --}}
+                                                        <a class="btn btn-sm btn-dark mb-2" href="{{ route($rutaPrefix . '.edit', ['uuid' => $ficha->uuid]) }}"><i class="bi bi-pencil fs-5"></i></a>
+                                                        <a class="btn btn-sm btn-danger" href="#" onclick="triggerParentClick(event,this);"><i class="bi bi-trash fs-5"></i></a>
+                                                        @endif
+                                                        @else
+                                                        @if(!$esAgenciaEventos)
+                                                        <a class="btn btn-sm btn-success mb-2" href="{{ route('fichas.ticket', ['uuid' => $ficha->uuid]) }}" title="{{ __('Descargar Ticket') }}"><i class="bi bi-receipt"></i></a>
+                                                        @endif
                                                         @endif
                                                     </div>
                                                 </td>
@@ -311,8 +331,8 @@
             </button>
             @endif
             @php
-                $esUsuarioBasicoFooter = Auth::user()->role_id >= \App\Enums\Role::USUARIO_MESAS;
-                $puedeCrearEvento = !($esAgenciaEventos && $esUsuarioBasicoFooter);
+            $esUsuarioBasicoFooter = Auth::user()->role_id >= \App\Enums\Role::USUARIO_MESAS;
+            $puedeCrearEvento = !($esAgenciaEventos && $esUsuarioBasicoFooter);
             @endphp
             @if($puedeCrearEvento)
             <a href="{{ route($rutaPrefix . '.create') }}" class="btn btn-primary fondo-rojo borde-rojo mx-1"><i class="bi bi-plus-circle"></i></a>

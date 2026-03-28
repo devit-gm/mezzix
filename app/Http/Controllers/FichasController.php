@@ -94,6 +94,10 @@ class FichasController extends Controller
                 'gastos'        // 🚀 Añadido
             ]);
 
+        $esConsultaCerradas = $request->method() != "GET" && (int) $request->incluir_cerradas === 1;
+        $limiteCerradas = (int) $request->input('limite_cerradas', 20);
+        $limiteCerradas = max(10, min($limiteCerradas, 300));
+
         if ($request->method() == "GET") {
             $query->where('estado', 0)
                 ->orderBy('fecha', 'asc')
@@ -107,7 +111,8 @@ class FichasController extends Controller
                 // Fichas cerradas: orden descendente (más recientes primero)
                 $query->where('estado', 1)
                     ->orderBy('fecha', 'desc')
-                    ->orderBy('hora', 'desc');
+                    ->orderBy('hora', 'desc')
+                    ->limit($limiteCerradas);
             }
         }
 
@@ -182,20 +187,15 @@ class FichasController extends Controller
             }
         }
 
-        // Si son fichas cerradas, limitar a 20 más recientes después del filtro de permisos
-        if ($request->method() == "POST" && $request->incluir_cerradas == 1) {
-            $fichas = array_slice($fichas, 0, 20);
-        }
-
         $errors = new \Illuminate\Support\MessageBag();
         if ($fichas == null || count($fichas) == 0) {
             $mensajeError = ($ajustes && $ajustes->modo_operacion === 'agencia_eventos')
                 ? __('No se encontraron eventos para mostrar.')
                 : __('No se encontraron fichas para mostrar.');
             $errors->add('msg', $mensajeError);
-            return view('fichas.index', compact('fichas', 'errors', 'request', 'ajustes'));
+            return view('fichas.index', compact('fichas', 'errors', 'request', 'ajustes', 'esConsultaCerradas', 'limiteCerradas'));
         } else {
-            return view('fichas.index', compact('fichas', 'request', 'ajustes'));
+            return view('fichas.index', compact('fichas', 'request', 'ajustes', 'esConsultaCerradas', 'limiteCerradas'));
         }
     }
 
@@ -449,9 +449,9 @@ class FichasController extends Controller
 
         $rutaCompleta = $rutaTickets . '/' . $nombreArchivo;
 
-        // Si el archivo ya existe, redirigir directamente a él
+        // Regenerar siempre para reflejar cambios de datos y de plantilla.
         if (file_exists($rutaCompleta)) {
-            return redirect(asset('tickets/' . $nombreArchivo));
+            @unlink($rutaCompleta);
         }
 
         // Calcular totales con IVA
@@ -573,8 +573,22 @@ class FichasController extends Controller
         // Guardar el PDF en el servidor
         $pdf->save($rutaCompleta);
 
-        // Redirigir a la URL del PDF
-        return redirect(asset('tickets/' . $nombreArchivo));
+        // Mostrar visor con acciones de descargar/imprimir
+        return $this->mostrarTicketEnVisor($nombreArchivo, $ficha);
+    }
+
+    /**
+     * Muestra un visor HTML con acciones explícitas para PWA.
+     */
+    protected function mostrarTicketEnVisor(string $nombreArchivo, Ficha $ficha)
+    {
+        $pdfUrl = asset('tickets/' . $nombreArchivo);
+
+        return view('fichas.ticket-viewer', [
+            'pdfUrl' => $pdfUrl,
+            'nombreArchivo' => $nombreArchivo,
+            'ficha' => $ficha,
+        ]);
     }
 
     /**
