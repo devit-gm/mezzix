@@ -145,6 +145,16 @@
             border-top: 2px solid #000;
         }
 
+        .extra-charge-row {
+            margin-top: 6px;
+            font-size: 13px;
+        }
+
+        .extra-charge-row .total-label,
+        .extra-charge-row .total-value {
+            font-weight: bold;
+        }
+
         .iva-desglose {
             margin: 8px 0;
             font-size: 12px;
@@ -238,6 +248,17 @@
                 </tr>
             </table>
         </div>
+
+        @if(isset($cargoInvitados) && ($cargoInvitados['importe'] ?? 0) > 0)
+        <div class="total-row extra-charge-row">
+            <table class="total-line">
+                <tr>
+                    <td class="total-label">Cargo invitados ({{ $cargoInvitados['cantidad_cobrada'] }}):</td>
+                    <td class="total-value">{{ number_format($cargoInvitados['importe'], 2, ',', '.') }} €</td>
+                </tr>
+            </table>
+        </div>
+        @endif
     </div>
 
 

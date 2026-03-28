@@ -558,11 +558,14 @@ class FichasController extends Controller
             $ivaDesglose[$ivaKey]['cuota'] += $importeIva;
         }
 
+        // Añadir cargo adicional de invitados del usuario que genera el ticket
+        $cargoInvitados = $this->calcularCargoInvitadosUsuarioActual($ficha, $ajustes);
+
         $total = $subtotal + $totalIva;
         $site = get_site();
 
         // Generar PDF usando dompdf
-        $pdf = PDF::loadView('fichas.ticket-pdf', compact('ficha', 'lineas', 'subtotal', 'totalIva', 'total', 'ivaDesglose', 'ajustes', 'site'));
+        $pdf = PDF::loadView('fichas.ticket-pdf', compact('ficha', 'lineas', 'subtotal', 'totalIva', 'total', 'ivaDesglose', 'ajustes', 'site', 'cargoInvitados'));
 
         // Configurar ancho de ticket (80mm = 226.77 puntos)
         $pdf->setPaper([0, 0, 226.77, 841.89], 'portrait');
@@ -575,6 +578,46 @@ class FichasController extends Controller
 
         // Mostrar visor con acciones de descargar/imprimir
         return $this->mostrarTicketEnVisor($nombreArchivo, $ficha);
+    }
+
+    /**
+     * Calcula el cargo de invitados únicamente para el usuario autenticado.
+     */
+    protected function calcularCargoInvitadosUsuarioActual(Ficha $ficha, $ajustes): array
+    {
+        $precioInvitado = (float) ($ajustes->precio_invitado ?? 0);
+        if ($precioInvitado <= 0 || !Auth::check()) {
+            return ['cantidad_cobrada' => 0, 'precio_unitario' => $precioInvitado, 'importe' => 0.0];
+        }
+
+        $inscripcionUsuario = FichaUsuario::where('id_ficha', $ficha->uuid)
+            ->where('user_id', Auth::id())
+            ->first(['invitados']);
+
+        if (!$inscripcionUsuario) {
+            return ['cantidad_cobrada' => 0, 'precio_unitario' => $precioInvitado, 'importe' => 0.0];
+        }
+
+        $numInvitados = (int) ($inscripcionUsuario->invitados ?? 0);
+        $maxInvitadosCobrar = (int) ($ajustes->max_invitados_cobrar ?? 0);
+
+        // Mantener la misma regla usada en FichaService::calcularInvitados.
+        if ($numInvitados > $maxInvitadosCobrar) {
+            $numInvitados = $maxInvitadosCobrar;
+        }
+
+        if (($ajustes->primer_invitado_gratis ?? false) && $numInvitados > 0) {
+            $numInvitados--;
+        }
+
+        $numInvitados = max(0, $numInvitados);
+        $importe = $numInvitados * $precioInvitado;
+
+        return [
+            'cantidad_cobrada' => $numInvitados,
+            'precio_unitario' => $precioInvitado,
+            'importe' => $importe,
+        ];
     }
 
     /**
