@@ -23,15 +23,15 @@
                             <label for="email" class="form-label fw-semibold">
                                 <i class="bi bi-envelope me-1"></i> {{ __('Email Address') }}
                             </label>
-                            <input id="email" type="email" 
-                                class="form-control form-control-lg @error('email') is-invalid @enderror" 
-                                name="email" 
-                                value="{{ old('email') }}" 
-                                placeholder="tu@email.com"
-                                required 
-                                autocomplete="email" 
+                            <input id="email" type="email"
+                                class="form-control form-control-lg @error('email') is-invalid @enderror"
+                                name="email"
+                                value="{{ old('email') }}"
+                                required
+                                autocomplete="email"
                                 autofocus
                                 style="border-radius: 10px;">
+                            <div class="form-text small">{{ __('Introduce tu correo electrónico de acceso') }}</div>
 
                             @error('email')
                             <span class="invalid-feedback" role="alert">
@@ -46,23 +46,23 @@
                                 <i class="bi bi-lock me-1"></i> {{ __('Password') }}
                             </label>
                             <div class="password-container position-relative">
-                                <input id="password" type="password" 
-                                    class="form-control form-control-lg @error('password') is-invalid @enderror" 
-                                    name="password" 
-                                    placeholder="••••••••"
-                                    required 
+                                <input id="password" type="password"
+                                    class="form-control form-control-lg @error('password') is-invalid @enderror"
+                                    name="password"
+                                    required
                                     autocomplete="current-password"
                                     style="border-radius: 10px; padding-right: 45px;">
-                                <i class="bi bi-eye toggle-password position-absolute" 
-                                   id="togglePassword"
-                                   style="right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1.2rem;"></i>
-                                
+                                <i class="bi bi-eye toggle-password position-absolute"
+                                    id="togglePassword"
+                                    style="right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1.2rem;"></i>
+
                                 @error('password')
                                 <span class="invalid-feedback" role="alert">
                                     <strong>{{ $message }}</strong>
                                 </span>
                                 @enderror
                             </div>
+                            <div class="form-text small">{{ __('Escribe tu contraseña para continuar') }}</div>
                         </div>
 
                         <!-- Remember Me -->

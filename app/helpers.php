@@ -7,7 +7,8 @@ use App\Models\Servicio;
 use App\Models\Producto;
 
 if (!function_exists('servicios_menu')) {
-    function servicios_menu() {
+    function servicios_menu()
+    {
         return Cache::rememberForever('servicios_menu', function () {
             return Servicio::on('site')->get();
         });
@@ -15,7 +16,8 @@ if (!function_exists('servicios_menu')) {
 }
 
 if (!function_exists('productos_menu')) {
-    function productos_menu() {
+    function productos_menu()
+    {
         return Cache::rememberForever('productos_menu', function () {
             return Producto::on('site')
                 ->with(['familiaObj', 'componentes', 'fichas'])
@@ -26,7 +28,8 @@ if (!function_exists('productos_menu')) {
 }
 
 if (!function_exists('familias_menu')) {
-    function familias_menu() {
+    function familias_menu()
+    {
         return Cache::rememberForever('familias_menu', function () {
             return Familia::on('site')->get();
         });
@@ -34,7 +37,8 @@ if (!function_exists('familias_menu')) {
 }
 
 if (!function_exists('ajustes_menu')) {
-    function ajustes_menu() {
+    function ajustes_menu()
+    {
         return Cache::rememberForever('ajustes_menu', function () {
             return Ajustes::on('site')->where('id', 1)->first();
         });
@@ -44,7 +48,20 @@ if (!function_exists('ajustes_menu')) {
 if (!function_exists('siteLogo')) {
     function siteLogo()
     {
-        return config('site.logo') ? asset(config('site.logo')) : asset('images/logo.png');
+        $logo = config('site.logo');
+
+        // En login no se carga config('site.*'); resolvemos por dominio como fallback.
+        if (empty($logo) && app()->bound('request')) {
+            try {
+                $domain = request()->getHost();
+                $site = \App\Models\Site::select('ruta_logo')->where('dominio', $domain)->first();
+                $logo = $site?->ruta_logo;
+            } catch (\Throwable $e) {
+                $logo = null;
+            }
+        }
+
+        return $logo ? asset(ltrim($logo, '/')) : asset('images/logo.png');
     }
 }
 
@@ -107,14 +124,14 @@ if (!function_exists('fichaRoute')) {
             // Fallback seguro si la tabla no existe o hay error de BD
             $modoOperacion = 'fichas';
         }
-        
+
         $prefix = $modoOperacion === 'mesas' ? 'mesas' : 'fichas';
-        
+
         // Ajustar nombre de ruta para resumen-final en mesas
         if ($action === 'resumen' && $prefix === 'mesas') {
             return route("{$prefix}.resumen-final", $parameters);
         }
-        
+
         return route("{$prefix}.{$action}", $parameters);
     }
 }
@@ -132,9 +149,9 @@ if (!function_exists('cachedImage')) {
         if (empty($imagePath)) {
             return asset('images/default.png');
         }
-        
+
         $url = asset('images/' . $imagePath);
-        
+
         // Agregar versión basada en timestamp del archivo para cache busting
         if ($version) {
             $filePath = public_path('images/' . $imagePath);
@@ -143,7 +160,7 @@ if (!function_exists('cachedImage')) {
                 $url .= '?v=' . $timestamp;
             }
         }
-        
+
         return $url;
     }
 }
@@ -162,7 +179,7 @@ if (!function_exists('optimizedImageTag')) {
     function optimizedImageTag($imagePath, $alt = '', $width = null, $height = null, $classes = 'img-fluid rounded')
     {
         $url = cachedImage($imagePath);
-        
+
         $attributes = [
             'src' => $url,
             'alt' => $alt,
@@ -170,20 +187,20 @@ if (!function_exists('optimizedImageTag')) {
             'loading' => 'lazy', // Lazy loading nativo
             'decoding' => 'async' // Decodificación asíncrona
         ];
-        
+
         if ($width) {
             $attributes['width'] = $width;
         }
-        
+
         if ($height) {
             $attributes['height'] = $height;
         }
-        
+
         $attrString = '';
         foreach ($attributes as $key => $value) {
             $attrString .= sprintf(' %s="%s"', $key, htmlspecialchars($value));
         }
-        
+
         return '<img' . $attrString . ' />';
     }
 }
