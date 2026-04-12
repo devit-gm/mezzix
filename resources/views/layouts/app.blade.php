@@ -15,7 +15,7 @@
     <link href="https://fonts.bunny.net/css?family=Nunito?v=281120252245" rel="stylesheet">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ siteFavicon() }}-32x32.png?v=281120252245">
     <link rel="icon" type="image/png" sizes="16x16" href="{{ siteFavicon() }}-16x16.png?v=281120252245">
-    
+
     <!-- PWA Manifest -->
     <link rel="manifest" href="{{ route('manifest') }}">
     <meta name="theme-color" content="#a7380d">
@@ -23,19 +23,19 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="{{ siteName() }}">
-    
+
     @php
-        $domain = request()->getHost();
-        $site = \App\Models\Site::where('dominio', $domain)->first();
-        $basePath = $site && $site->carpeta_pwa ? '/' . trim($site->carpeta_pwa, '/') : '/images/icons';
+    $domain = request()->getHost();
+    $site = \App\Models\Site::where('dominio', $domain)->first();
+    $basePath = $site && $site->carpeta_pwa ? '/' . trim($site->carpeta_pwa, '/') : '/images/icons';
     @endphp
-    
+
     <!-- Apple Touch Icons -->
     <link rel="apple-touch-icon" sizes="180x180" href="{{ asset($basePath . '/icon-192x192.png') }}">
     <link rel="apple-touch-icon" sizes="152x152" href="{{ asset($basePath . '/icon-152x152.png') }}">
     <link rel="apple-touch-icon" sizes="144x144" href="{{ asset($basePath . '/icon-144x144.png') }}">
     <link rel="apple-touch-icon" sizes="120x120" href="{{ asset($basePath . '/icon-128x128.png') }}">
-    
+
     <!-- iOS Splash Screens -->
     <!-- iPhone X, XS, 11 Pro, 12 mini, 13 mini (1125x2436) -->
     <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" href="{{ asset($basePath . '/splash-1125x2436.png') }}">
@@ -63,31 +63,33 @@
     <!-- Scripts -->
     <link rel="stylesheet" href="{{ siteStyles() }}?v=281120252245">
     <script src="{{ asset('js/app.js') }}?v=281120252245" defer></script>
-    
+
     @stack('styles')
-    
+
     <style>
         /* 🎄 Efecto de nieve navideño - Minimalista y elegante */
         .snowflake {
             position: fixed;
             top: -10px;
-            z-index: 99999; /* Aumentado para estar por encima de modales y otros elementos */
+            z-index: 99999;
+            /* Aumentado para estar por encima de modales y otros elementos */
             pointer-events: none;
             font-size: 1em;
             animation: fall linear infinite;
             text-shadow: 0 0 3px rgba(0, 0, 0, 0.3);
         }
-        
+
         /* Adaptar color según tema */
         @media (prefers-color-scheme: dark) {
             .snowflake {
                 color: rgba(255, 255, 255, 0.8);
             }
         }
-        
+
         @media (prefers-color-scheme: light) {
             .snowflake {
-                color: rgba(100, 150, 200, 0.7); /* Azul claro para modo claro */
+                color: rgba(100, 150, 200, 0.7);
+                /* Azul claro para modo claro */
             }
         }
 
@@ -224,13 +226,14 @@
             min-height: calc(100vh - 240px);
             padding-bottom: 20px;
         }
+
         .main-content-cocinero {
             min-height: calc(100vh - 20px) !important;
             height: calc(100vh - 20px) !important;
             padding-bottom: 00px !important;
             overflow: hidden !important;
         }
-        
+
         body {
             padding-bottom: 40px;
         }
@@ -301,7 +304,7 @@
         }
 
         /* Estilos para botones */
-        
+
 
         .btn:hover {
             transform: translateY(-2px);
@@ -365,6 +368,7 @@
                 opacity: 0;
                 transform: translateY(20px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -459,7 +463,7 @@
             height: auto;
             position: relative;
         }
-        
+
         footer .card-footer {
             min-height: 80px;
             height: auto;
@@ -582,7 +586,7 @@
             font-size: 0.9rem;
             padding: 0;
             border: 2px solid rgba(255, 255, 255, 0.5);
-            margin:5px;
+            margin: 5px;
         }
 
         .navbar.fondo-rojo .navbar-nav.ms-auto .nav-item:last-child #navbarDropdown:hover {
@@ -609,7 +613,7 @@
 <body>
 
     @php
-        $esCocineroEnCocina = auth()->check() && auth()->user()->role_id == \App\Enums\Role::COCINERO && request()->is('cocina/mesas');
+    $esCocineroEnCocina = auth()->check() && auth()->user()->role_id == \App\Enums\Role::COCINERO && request()->is('cocina/mesas');
     @endphp
     @guest
     <main class="py-3">
@@ -620,12 +624,12 @@
     <nav class="navbar navbar-expand-md navbar-dark shadow-sm fondo-rojo">
         <div class="container-fluid px-2">
             @php
-                try {
-                    $ajustesLogo = \App\Models\Ajustes::first();
-                    $logoUrl = ($ajustesLogo && $ajustesLogo->modo_operacion === 'mesas') ? url('/mesas') : url('/');
-                } catch (\Exception $e) {
-                    $logoUrl = url('/');
-                }
+            try {
+            $ajustesLogo = \App\Models\Ajustes::first();
+            $logoUrl = ($ajustesLogo && $ajustesLogo->modo_operacion === 'mesas') ? url('/mesas') : url('/');
+            } catch (\Exception $e) {
+            $logoUrl = url('/');
+            }
             @endphp
             <a class="navbar-brand brand-enhanced" href="{{ $logoUrl }}">
                 <div class="brand-wrapper">
@@ -634,25 +638,25 @@
                 </div>
             </a>
             @php
-                try {
-                    $ajustesNav = \App\Models\Ajustes::first();
-                    $modoOperacionNav = $ajustesNav->modo_operacion ?? 'fichas';
-                } catch (\Exception $e) {
-                    $modoOperacionNav = 'fichas';
-                }
-                $esUsuarioMesas = (Auth::user()->role_id == \App\Enums\Role::USUARIO_MESAS && $modoOperacionNav === 'mesas');
+            try {
+            $ajustesNav = \App\Models\Ajustes::first();
+            $modoOperacionNav = $ajustesNav->modo_operacion ?? 'fichas';
+            } catch (\Exception $e) {
+            $modoOperacionNav = 'fichas';
+            }
+            $esUsuarioMesas = (Auth::user()->role_id == \App\Enums\Role::USUARIO_MESAS && $modoOperacionNav === 'mesas');
             @endphp
-            
+
             @if($esUsuarioMesas)
-                <!-- Usuario tipo 4 en modo mesas: botón directo a mesas -->
-                <a href="{{ url('/mesas') }}" class="btn btn-outline-light ms-auto d-md-none">
-                    <i class="bi bi-grid-3x3-gap"></i>
-                </a>
+            <!-- Usuario tipo 4 en modo mesas: botón directo a mesas -->
+            <a href="{{ url('/mesas') }}" class="btn btn-outline-light ms-auto d-md-none">
+                <i class="bi bi-grid-3x3-gap"></i>
+            </a>
             @else
-                <!-- Menú normal con toggler -->
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="{{ __('Toggle navigation') }}">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
+            <!-- Menú normal con toggler -->
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="{{ __('Toggle navigation') }}">
+                <span class="navbar-toggler-icon"></span>
+            </button>
             @endif
 
             @if(!$esUsuarioMesas)
@@ -661,162 +665,165 @@
                 <ul class="navbar-nav me-auto ">
                     @if (app('site')->central == 0)
                     @php
-                        try {
-                            $modoOperacionMenu = ajustes_menu()->modo_operacion ?? 'fichas';
-                        } catch (\Exception $e) {
-                            $modoOperacionMenu = 'fichas';
-                        }
+                    try {
+                    $modoOperacionMenu = ajustes_menu()->modo_operacion ?? 'fichas';
+                    } catch (\Exception $e) {
+                    $modoOperacionMenu = 'fichas';
+                    }
                     @endphp
-                    
+
                     @if($modoOperacionMenu === 'mesas')
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('fichas.*') || request()->routeIs('mesas.*') || request()->routeIs('cocina.*') || Request::is('/') || Request::is('mesas') ? 'active' : '' }}" href="{{ url('/mesas') }}">
-                                {{ __('Mesas') }}
-                            </a>
-                        </li>
-                    @elseif($modoOperacionMenu === 'agencia_eventos')
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('eventos.gestion.*') || request()->routeIs('eventos-publicos.*') || Request::is('/') ? 'active' : '' }}" href="{{ route('eventos.gestion.index') }}">
-                                {{ __('Eventos') }}
-                            </a>
-                        </li>
-                        
-                                               
-                    @else
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('fichas.*') || Request::is('/') ? 'active' : '' }}" href="{{ url('') }}">{{ __('Tokens') }}</a>
-                        </li>
-                    @endif
-                    
-                    @if (Auth::user()->role_id < \App\Enums\Role::USUARIO_MESAS)
-                    @php
-                        try {
-                            $ajustesMenuGestion = ajustes_menu();
-                            $modoOperacionMenuGestion = $ajustesMenuGestion->modo_operacion ?? 'fichas';
-                        } catch (\Exception $e) {
-                            $modoOperacionMenuGestion = 'fichas';
-                        }
-                    @endphp
-                    @if($modoOperacionMenuGestion === 'agencia_eventos')
                     <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('usuarios.*') ? 'active' : '' }}" href="{{ url('/usuarios') }}">
-                             {{ __('GESTIÓN USUARIOS') }}
+                        <a class="nav-link {{ request()->routeIs('fichas.*') || request()->routeIs('mesas.*') || request()->routeIs('cocina.*') || Request::is('/') || Request::is('mesas') ? 'active' : '' }}" href="{{ url('/mesas') }}">
+                            {{ __('Mesas') }}
                         </a>
                     </li>
+                    @elseif($modoOperacionMenu === 'agencia_eventos')
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('eventos.gestion.*') || request()->routeIs('eventos-publicos.*') || Request::is('/') ? 'active' : '' }}" href="{{ route('eventos.gestion.index') }}">
+                            {{ __('Eventos') }}
+                        </a>
+                    </li>
+
+
                     @else
-                    <li class="nav-item dropdown">
-                        <a id="navbarDropdown" class="nav-link dropdown-toggle {{ (request()->routeIs('usuarios.*') || request()->routeIs('familias.*') || request()->routeIs('productos.*') || request()->routeIs('servicios.*') || request()->routeIs('proveedores.*') || request()->routeIs('albaranes.*') || request()->routeIs('facturas.*')) ? 'active' : '' }}" href="#" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
-                            {{ __('GESTIÓN') }}
-                        </a>
-                        <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                            <a class="dropdown-item {{ request()->routeIs('usuarios.*') ? 'active' : '' }}" href="{{ url('/usuarios') }}">{{ __('USUARIOS') }}</a>
-                            <a class="dropdown-item {{ request()->routeIs('familias.*') ? 'active' : '' }}" href="{{ url('/familias') }}">{{ __('FAMILIAS') }}</a>
-                            <a class="dropdown-item {{ request()->routeIs('productos.*') ? 'active' : '' }}" href="{{ url('/productos') }}">{{ __('PRODUCTOS') }}</a>
-                            <a class="dropdown-item {{ request()->routeIs('servicios.*') ? 'active' : '' }}" href="{{ url('/servicios') }}">{{ __('SERVICIOS') }}</a>
-                            <div class="dropdown-divider"></div>
-                            <a class="dropdown-item {{ request()->routeIs('proveedores.*') ? 'active' : '' }}" href="{{ url('/proveedores') }}">{{ __('PROVEEDORES') }}</a>
-                            <a class="dropdown-item {{ request()->routeIs('albaranes.*') ? 'active' : '' }}" href="{{ url('/albaranes') }}">{{ __('ALBARANES') }}</a>
-                            @php
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('fichas.*') || Request::is('/') ? 'active' : '' }}" href="{{ url('') }}">{{ __('Tokens') }}</a>
+                    </li>
+                    @endif
+
+                    @if (Auth::user()->role_id < \App\Enums\Role::USUARIO_MESAS)
+                        @php
+                        try {
+                        $ajustesMenuGestion=ajustes_menu();
+                        $modoOperacionMenuGestion=$ajustesMenuGestion->modo_operacion ?? 'fichas';
+                        } catch (\Exception $e) {
+                        $modoOperacionMenuGestion = 'fichas';
+                        }
+                        @endphp
+                        @if($modoOperacionMenuGestion === 'agencia_eventos')
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('usuarios.*') ? 'active' : '' }}" href="{{ url('/usuarios') }}">
+                                {{ __('GESTIÓN USUARIOS') }}
+                            </a>
+                        </li>
+                        @else
+                        <li class="nav-item dropdown">
+                            <a id="navbarDropdown" class="nav-link dropdown-toggle {{ (request()->routeIs('usuarios.*') || request()->routeIs('familias.*') || request()->routeIs('productos.*') || request()->routeIs('servicios.*') || request()->routeIs('proveedores.*') || request()->routeIs('albaranes.*') || request()->routeIs('facturas.*')) ? 'active' : '' }}" href="#" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
+                                {{ __('GESTIÓN') }}
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                                <a class="dropdown-item {{ request()->routeIs('usuarios.*') ? 'active' : '' }}" href="{{ url('/usuarios') }}">{{ __('USUARIOS') }}</a>
+                                <a class="dropdown-item {{ request()->routeIs('familias.*') ? 'active' : '' }}" href="{{ url('/familias') }}">{{ __('FAMILIAS') }}</a>
+                                <a class="dropdown-item {{ request()->routeIs('productos.*') ? 'active' : '' }}" href="{{ url('/productos') }}">{{ __('PRODUCTOS') }}</a>
+                                <a class="dropdown-item {{ request()->routeIs('servicios.*') ? 'active' : '' }}" href="{{ url('/servicios') }}">{{ __('SERVICIOS') }}</a>
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item {{ request()->routeIs('proveedores.*') ? 'active' : '' }}" href="{{ url('/proveedores') }}">{{ __('PROVEEDORES') }}</a>
+                                <a class="dropdown-item {{ request()->routeIs('albaranes.*') ? 'active' : '' }}" href="{{ url('/albaranes') }}">{{ __('ALBARANES') }}</a>
+                                @php
                                 try {
-                                    $ajustesMenu = ajustes_menu();
-                                    $modoOperacionMenu = $ajustesMenu->modo_operacion ?? 'fichas';
+                                $ajustesMenu = ajustes_menu();
+                                $modoOperacionMenu = $ajustesMenu->modo_operacion ?? 'fichas';
                                 } catch (\Exception $e) {
-                                    $modoOperacionMenu = 'fichas';
+                                $modoOperacionMenu = 'fichas';
                                 }
-                            @endphp
-                            @if($modoOperacionMenu === 'mesas')
+                                @endphp
+                                @if($modoOperacionMenu === 'mesas')
                                 <a class="dropdown-item {{ request()->routeIs('facturas.*') ? 'active' : '' }}" href="{{ url('/facturas') }}">{{ __('FACTURAS') }}</a>
-                            @endif
-                        </div>
-                    </li>
-                    @endif
+                                @endif
+                            </div>
+                        </li>
+                        @endif
 
-                    @php
+
+
+                        @endif
+
+                        @php
                         try {
-                            $ajustesReservas = ajustes_menu();
-                            $modoOperacionReservas = $ajustesReservas->modo_operacion ?? 'fichas';
+                        $ajustesReservas = ajustes_menu();
+                        $modoOperacionReservas = $ajustesReservas->modo_operacion ?? 'fichas';
                         } catch (\Exception $e) {
-                            $modoOperacionReservas = 'fichas';
+                        $modoOperacionReservas = 'fichas';
                         }
-                    @endphp
-                    @if($modoOperacionReservas !== 'agencia_eventos')
-                    <li class="nav-item dropdown">
-                        <a id="navbarDropdownReservas" class="nav-link dropdown-toggle {{ request()->routeIs('reservas.*') ? 'active' : '' }}" href="#" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
-                            {{ __('RESERVAS') }}
-                        </a>
+                        @endphp
+                        @if($modoOperacionReservas !== 'agencia_eventos')
+                        <li class="nav-item dropdown">
+                            <a id="navbarDropdownReservas" class="nav-link dropdown-toggle {{ request()->routeIs('reservas.*') ? 'active' : '' }}" href="#" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
+                                {{ __('RESERVAS') }}
+                            </a>
 
-                        <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownReservas">
-                            <a class="dropdown-item {{ request()->routeIs('reservas.index') || request()->routeIs('reservas.create') || request()->routeIs('reservas.edit') ? 'active' : '' }}" href="{{ url('/reservas') }}">{{ __('GESTIÓN') }}</a>
-                            <a class="dropdown-item {{ request()->routeIs('reservas.calendario') ? 'active' : '' }}" href="{{ route('reservas.calendario') }}">{{ __('CALENDARIO') }}</a>
-                        </div>
-                    </li>
-                    @endif
-                    @endif
-                    
-                    @php
+                            <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownReservas">
+                                <a class="dropdown-item {{ request()->routeIs('reservas.index') || request()->routeIs('reservas.create') || request()->routeIs('reservas.edit') ? 'active' : '' }}" href="{{ url('/reservas') }}">{{ __('GESTIÓN') }}</a>
+                                <a class="dropdown-item {{ request()->routeIs('reservas.calendario') ? 'active' : '' }}" href="{{ route('reservas.calendario') }}">{{ __('CALENDARIO') }}</a>
+                            </div>
+                        </li>
+                        @endif
+                        @php
                         try {
-                            $ajustesInformes = ajustes_menu();
-                            $modoOperacionInformes = $ajustesInformes->modo_operacion ?? 'fichas';
+                        $ajustesInformes = ajustes_menu();
+                        $modoOperacionInformes = $ajustesInformes->modo_operacion ?? 'fichas';
                         } catch (\Exception $e) {
-                            $modoOperacionInformes = 'fichas';
+                        $modoOperacionInformes = 'fichas';
                         }
-                    @endphp
-                    @if($modoOperacionInformes !== 'agencia_eventos')
-                    <li class="nav-item dropdown">
-                        <a id="navbarDropdownInformes" class="nav-link dropdown-toggle {{ request()->routeIs('informes.*') || request()->routeIs('facturacion.*') ? 'active' : '' }}" href="#" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
-                            {{ __('INFORMES') }}
-                        </a>
+                        @endphp
+                        @if($modoOperacionInformes !== 'agencia_eventos')
+                        <li class="nav-item dropdown">
+                            <a id="navbarDropdownInformes" class="nav-link dropdown-toggle {{ request()->routeIs('informes.*') || request()->routeIs('facturacion.*') ? 'active' : '' }}" href="#" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
+                                {{ __('INFORMES') }}
+                            </a>
 
-                        <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownInformes">
-                            @if (Auth::user()->role_id < \App\Enums\Role::USUARIO_MESAS)
-                            <a class="dropdown-item {{ request()->routeIs('facturacion.*') ? 'active' : '' }}" href="{{ url('/facturacion') }}">{{ __('FACTURACIÓN') }}</a>
-                            @endif
-                            
-                            @php
-                                try {
+                            <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownInformes">
+                                @if (Auth::user()->role_id < \App\Enums\Role::USUARIO_MESAS)
+                                    <a class="dropdown-item {{ request()->routeIs('facturacion.*') ? 'active' : '' }}" href="{{ url('/facturacion') }}">{{ __('FACTURACIÓN') }}</a>
+                                    @endif
+
+                                    @php
+                                    try {
                                     $ajustes = ajustes_menu();
                                     $modoOperacion = $ajustes->modo_operacion ?? 'fichas';
-                                } catch (\Exception $e) {
+                                    } catch (\Exception $e) {
                                     $modoOperacion = 'fichas';
-                                }
-                            @endphp
-                            
-                            @if($modoOperacion !== 'mesas')
-                                <a class="dropdown-item {{ request()->routeIs('informes.index') || request()->routeIs('informes.balance') ? 'active' : '' }}" href="{{ url('/informes') }}">{{ __('BALANCE POR SOCIO') }}</a>
-                                @if (Auth::user()->role_id < \App\Enums\Role::USUARIO_MESAS)
-                                <div class="dropdown-divider"></div>
-                                <a class="dropdown-item {{ request()->routeIs('informes.ventas-productos-fichas') ? 'active' : '' }}" href="{{ route('informes.ventas-productos-fichas') }}">{{ strtoupper(__('Ventas por Producto')) }}</a>
-                                <a class="dropdown-item {{ request()->routeIs('informes.ventas-socios') ? 'active' : '' }}" href="{{ route('informes.ventas-socios') }}">{{ strtoupper(__('Ventas por Socio')) }}</a>
-                                <a class="dropdown-item {{ request()->routeIs('informes.compras-usuarios') ? 'active' : '' }}" href="{{ route('informes.compras-usuarios') }}">{{ strtoupper(__('Compras por Usuario')) }}</a>
-                                <a class="dropdown-item {{ request()->routeIs('informes.evolucion-temporal') ? 'active' : '' }}" href="{{ route('informes.evolucion-temporal') }}">{{ __('EVOLUCIÓN TEMPORAL') }}</a>
-                                @endif
+                                    }
+                                    @endphp
+
+                                    @if($modoOperacion !== 'mesas')
+                                    <a class="dropdown-item {{ request()->routeIs('informes.index') || request()->routeIs('informes.balance') ? 'active' : '' }}" href="{{ url('/informes') }}">{{ __('BALANCE POR SOCIO') }}</a>
+                                    @if (Auth::user()->role_id < \App\Enums\Role::USUARIO_MESAS)
+                                        <div class="dropdown-divider">
+                            </div>
+                            <a class="dropdown-item {{ request()->routeIs('informes.ventas-productos-fichas') ? 'active' : '' }}" href="{{ route('informes.ventas-productos-fichas') }}">{{ strtoupper(__('Ventas por Producto')) }}</a>
+                            <a class="dropdown-item {{ request()->routeIs('informes.ventas-socios') ? 'active' : '' }}" href="{{ route('informes.ventas-socios') }}">{{ strtoupper(__('Ventas por Socio')) }}</a>
+                            <a class="dropdown-item {{ request()->routeIs('informes.compras-usuarios') ? 'active' : '' }}" href="{{ route('informes.compras-usuarios') }}">{{ strtoupper(__('Compras por Usuario')) }}</a>
+                            <a class="dropdown-item {{ request()->routeIs('informes.evolucion-temporal') ? 'active' : '' }}" href="{{ route('informes.evolucion-temporal') }}">{{ __('EVOLUCIÓN TEMPORAL') }}</a>
+                            @endif
                             @else
-                                @if (Auth::user()->role_id < \App\Enums\Role::USUARIO_MESAS)
+                            @if (Auth::user()->role_id < \App\Enums\Role::USUARIO_MESAS)
                                 <a class="dropdown-item {{ request()->routeIs('informes.ventas-productos') ? 'active' : '' }}" href="{{ route('informes.ventas-productos') }}">{{ strtoupper(__('Ventas por Producto')) }}</a>
                                 <!-- <a class="dropdown-item {{ request()->routeIs('informes.ventas-camareros') ? 'active' : '' }}" href="{{ route('informes.ventas-camareros') }}">{{ strtoupper(__('Ventas por Camarero')) }}</a>
                                 <a class="dropdown-item {{ request()->routeIs('informes.ocupacion-mesas') ? 'active' : '' }}" href="{{ route('informes.ocupacion-mesas') }}">{{ strtoupper(__('Ocupacion de Mesas')) }}</a>
                                 <a class="dropdown-item {{ request()->routeIs('informes.horas-pico') ? 'active' : '' }}" href="{{ route('informes.horas-pico') }}">{{ strtoupper(__('Horas Pico')) }}</a> -->
                                 @endif
-                            @endif
-                        </div>
-                    </li>
-                    @endif
-                    
-                    @if (Auth::user()->role_id < \App\Enums\Role::USUARIO_MESAS)
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('ajustes.*') ? 'active' : '' }}" href="{{ url('/ajustes') }}">{{ __('Settings') }}</a>
-                    </li>
-                    @endif
+                                @endif
+            </div>
+            </li>
+            @endif
 
-                            @else
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('sitios.*') ? 'active' : '' }}" href="{{ url('/sitios') }}">{{ __('SOCIEDADES') }}</a>
-                            </li>
+            @if (Auth::user()->role_id < \App\Enums\Role::USUARIO_MESAS)
+                <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('ajustes.*') ? 'active' : '' }}" href="{{ url('/ajustes') }}">{{ __('Settings') }}</a>
+                </li>
+                @endif
 
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('licencias.*') ? 'active' : '' }}" href="{{ url('/licencias') }}">{{ __('Licencias') }}</a>
-                            </li>
-                            @endif
+                @else
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('sitios.*') ? 'active' : '' }}" href="{{ url('/sitios') }}">{{ __('SOCIEDADES') }}</a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('licencias.*') ? 'active' : '' }}" href="{{ url('/licencias') }}">{{ __('Licencias') }}</a>
+                </li>
+                @endif
                 </ul>
 
                 <!-- Right Side Of Navbar -->
@@ -848,8 +855,8 @@
                         </div>
                     </li>
                 </ul>
-            </div>
-            @endif
+        </div>
+        @endif
         </div>
     </nav>
 
@@ -871,74 +878,74 @@
     </footer>
     @endif
     @endguest
-        <!-- Service Worker Registration (solo en HTTPS) --> 
-@if(request()->secure() || str_contains(request()->getHost(), '127.0.0.1'))        @php
-            $domain = request()->getHost();
-            $site = \App\Models\Site::where('dominio', $domain)->first();
-            $iconBasePath = ($site && $site->carpeta_pwa) ? '/' . trim($site->carpeta_pwa, '/') : '/images/icons';
-        @endphp
-<script>
-            // Variable global con la ruta base de iconos PWA
-            window.PWA_ICON_PATH = '{{ $iconBasePath }}';
-            if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                    navigator.serviceWorker.register('/firebase-messaging-sw.js').then(registration => {
-                        console.log('SW Firebase registrado:', registration.scope);
-                        requestNotificationPermission();
-                        verificarEstadoNotificaciones(); // Verificar al cargar
-                    }).catch(error => console.log('Error SW:', error));
+    <!-- Service Worker Registration (solo en HTTPS) -->
+    @if(request()->secure() || str_contains(request()->getHost(), '127.0.0.1')) @php
+    $domain = request()->getHost();
+    $site = \App\Models\Site::where('dominio', $domain)->first();
+    $iconBasePath = ($site && $site->carpeta_pwa) ? '/' . trim($site->carpeta_pwa, '/') : '/images/icons';
+    @endphp
+    <script>
+        // Variable global con la ruta base de iconos PWA
+        window.PWA_ICON_PATH = '{{ $iconBasePath }}';
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/firebase-messaging-sw.js').then(registration => {
+                    console.log('SW Firebase registrado:', registration.scope);
+                    requestNotificationPermission();
+                    verificarEstadoNotificaciones(); // Verificar al cargar
+                }).catch(error => console.log('Error SW:', error));
+            });
+        }
+
+        // Función para verificar el estado de las notificaciones y mostrar/ocultar botón
+        function verificarEstadoNotificaciones() {
+            const botonActivar = document.getElementById('btnActivarNotificaciones');
+            if (!botonActivar) return;
+
+            if (!('Notification' in window)) {
+                botonActivar.style.display = 'none';
+                return;
+            }
+
+            const permission = Notification.permission;
+
+            if (permission === 'default') {
+                // No ha dado permiso aún - mostrar botón
+                botonActivar.style.display = 'flex';
+            } else {
+                // Ya ha dado permiso (granted) o lo ha bloqueado (denied) - ocultar botón
+                botonActivar.style.display = 'none';
+            }
+        }
+
+        // Función para activar notificaciones desde el botón flotante
+        async function activarNotificacionesDesdeBoton() {
+            if (!('Notification' in window)) {
+                alert('Este dispositivo no soporta notificaciones');
+                return;
+            }
+
+            const permission = await Notification.requestPermission();
+
+            if (permission === 'granted') {
+                await getFCMToken();
+                verificarEstadoNotificaciones(); // Ocultar botón
+
+                // Mostrar notificación de confirmación
+                new Notification('¡Notificaciones activadas!', {
+                    body: 'Recibirás notificaciones de actualizaciones y eventos importantes.',
+                    icon: window.PWA_ICON_PATH + '/icon-192x192.png'
                 });
+            } else if (permission === 'denied') {
+                alert('Has bloqueado las notificaciones. Ve a los ajustes de tu navegador para habilitarlas.');
+                verificarEstadoNotificaciones(); // Ocultar botón
             }
-            
-            // Función para verificar el estado de las notificaciones y mostrar/ocultar botón
-            function verificarEstadoNotificaciones() {
-                const botonActivar = document.getElementById('btnActivarNotificaciones');
-                if (!botonActivar) return;
-                
-                if (!('Notification' in window)) {
-                    botonActivar.style.display = 'none';
-                    return;
-                }
-                
-                const permission = Notification.permission;
-                
-                if (permission === 'default') {
-                    // No ha dado permiso aún - mostrar botón
-                    botonActivar.style.display = 'flex';
-                } else {
-                    // Ya ha dado permiso (granted) o lo ha bloqueado (denied) - ocultar botón
-                    botonActivar.style.display = 'none';
-                }
-            }
-            
-            // Función para activar notificaciones desde el botón flotante
-            async function activarNotificacionesDesdeBoton() {
-                if (!('Notification' in window)) {
-                    alert('Este dispositivo no soporta notificaciones');
-                    return;
-                }
-                
-                const permission = await Notification.requestPermission();
-                
-                if (permission === 'granted') {
-                    await getFCMToken();
-                    verificarEstadoNotificaciones(); // Ocultar botón
-                    
-                    // Mostrar notificación de confirmación
-                    new Notification('¡Notificaciones activadas!', {
-                        body: 'Recibirás notificaciones de actualizaciones y eventos importantes.',
-                        icon: window.PWA_ICON_PATH + '/icon-192x192.png'
-                    });
-                } else if (permission === 'denied') {
-                    alert('Has bloqueado las notificaciones. Ve a los ajustes de tu navegador para habilitarlas.');
-                    verificarEstadoNotificaciones(); // Ocultar botón
-                }
-            }
-            
-            // Verificar periódicamente el estado (por si cambia desde ajustes del navegador)
-            setInterval(verificarEstadoNotificaciones, 5000);
-            
-            async function requestNotificationPermission() {
+        }
+
+        // Verificar periódicamente el estado (por si cambia desde ajustes del navegador)
+        setInterval(verificarEstadoNotificaciones, 5000);
+
+        async function requestNotificationPermission() {
             if (!('Notification' in window)) return;
             if (Notification.permission === 'granted') {
                 await getFCMToken();
@@ -950,126 +957,128 @@
             }
         }
         async function getFCMToken() {
-                const registration = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js');
-                const {
-                    getMessaging,
-                    getToken,
-                    onMessage
-                } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js');
-                const {
-                    initializeApp
-                } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
-                const app = initializeApp({
-                    apiKey: "AIzaSyAKDn17J0jzjYrQFCGF7WRN6Lt4AW4n7PA",
-                    authDomain: "go-mezzix.firebaseapp.com",
-                    projectId: "go-mezzix",
-                    storageBucket: "go-mezzix.firebasestorage.app",
-                    messagingSenderId: "234995051320",
-                    appId: "1:234995051320:web:f32c705f863362b936afcd"
-                });
-                const messaging = getMessaging(app);
-                const token = await getToken(messaging, {
-                    vapidKey: 'BBOSRefR0aGaqbaUf5i7VuTTAyfD7Rh9-v-6NPXBg-S48EhOkDojSO0RiE-UJ8D0KlhrwER44pwhZ8zBz0Chdfk',
-                    serviceWorkerRegistration: registration
-                });
-                if (token) {
-                    console.log("TOKEN:", token);
-                    // Solo guardar si el usuario está autenticado
-                    @auth
-                    await saveTokenToServer(token);
-                    @else
-                    console.log("Usuario no autenticado, token no guardado");
-                    @endauth
-                } 
-                
-                // Recibir notificaciones en primer plano 
-                onMessage(messaging, async (payload) => {
-                    console.log("Mensaje en foreground:", payload);
-                    const title = payload.data?.title ?? payload.notification?.title;
-                    const body = payload.data?.body ?? payload.notification?.body;
-                    const data = payload.data;
-                    
-                    // Si es iOS PWA → el SW debe mostrar la notificación 
-                    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-                    const isPWA = window.navigator.standalone === true;
-                    
-                    if (isIOS && isPWA) {
-                        const reg = await navigator.serviceWorker.ready;
-                        reg.showNotification(title, {
-                            body: body,
-                            icon: window.PWA_ICON_PATH + '/icon-192x192.png',
-                            badge: window.PWA_ICON_PATH + '/icon-72x72.png',
-                            data: data
-                        });
-                        return;
-                    } 
-                    
-                    // Resto de navegadores → Notification API
-                    if (Notification.permission === 'granted') {
-                        const notification = new Notification(title, { 
-                            body: body, 
-                            icon: window.PWA_ICON_PATH + '/icon-192x192.png', 
-                            badge: window.PWA_ICON_PATH + '/icon-72x72.png', 
-                            data: data 
-                        });
-                        
-                        // Manejar clic en la notificación
-                        notification.onclick = function(event) {
-                            event.preventDefault();
-                            
-                            // Si es notificación de evento, redirigir al detalle
-                            if (data?.tipo === 'evento' && data?.evento_id) {
-                                window.focus();
-                                window.location.href = '/eventos-publicos/' + data.evento_id;
-                            } else {
-                                window.focus();
-                            }
-                            
-                            notification.close();
-                        };
-                    } 
-                });
+            const registration = await navigator.serviceWorker.getRegistration('/firebase-messaging-sw.js');
+            const {
+                getMessaging,
+                getToken,
+                onMessage
+            } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging.js');
+            const {
+                initializeApp
+            } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
+            const app = initializeApp({
+                apiKey: "AIzaSyAKDn17J0jzjYrQFCGF7WRN6Lt4AW4n7PA",
+                authDomain: "go-mezzix.firebaseapp.com",
+                projectId: "go-mezzix",
+                storageBucket: "go-mezzix.firebasestorage.app",
+                messagingSenderId: "234995051320",
+                appId: "1:234995051320:web:f32c705f863362b936afcd"
+            });
+            const messaging = getMessaging(app);
+            const token = await getToken(messaging, {
+                vapidKey: 'BBOSRefR0aGaqbaUf5i7VuTTAyfD7Rh9-v-6NPXBg-S48EhOkDojSO0RiE-UJ8D0KlhrwER44pwhZ8zBz0Chdfk',
+                serviceWorkerRegistration: registration
+            });
+            if (token) {
+                console.log("TOKEN:", token);
+                // Solo guardar si el usuario está autenticado
+                @auth
+                await saveTokenToServer(token);
+                @else
+                console.log("Usuario no autenticado, token no guardado");
+                @endauth
+            }
+
+            // Recibir notificaciones en primer plano 
+            onMessage(messaging, async (payload) => {
+                console.log("Mensaje en foreground:", payload);
+                const title = payload.data?.title ?? payload.notification?.title;
+                const body = payload.data?.body ?? payload.notification?.body;
+                const data = payload.data;
+
+                // Si es iOS PWA → el SW debe mostrar la notificación 
+                const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+                const isPWA = window.navigator.standalone === true;
+
+                if (isIOS && isPWA) {
+                    const reg = await navigator.serviceWorker.ready;
+                    reg.showNotification(title, {
+                        body: body,
+                        icon: window.PWA_ICON_PATH + '/icon-192x192.png',
+                        badge: window.PWA_ICON_PATH + '/icon-72x72.png',
+                        data: data
+                    });
+                    return;
                 }
-                async function saveTokenToServer(token) {
-                    try {
-                        const response = await fetch('/save-fcm-token', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Accept': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                            },
-                            credentials: 'include',
-                            body: JSON.stringify({ token })
-                        });
-                        
-                        const data = await response.json();
-                        if (response.ok) {
-                            console.log('✅ Token FCM guardado correctamente:', data);
+
+                // Resto de navegadores → Notification API
+                if (Notification.permission === 'granted') {
+                    const notification = new Notification(title, {
+                        body: body,
+                        icon: window.PWA_ICON_PATH + '/icon-192x192.png',
+                        badge: window.PWA_ICON_PATH + '/icon-72x72.png',
+                        data: data
+                    });
+
+                    // Manejar clic en la notificación
+                    notification.onclick = function(event) {
+                        event.preventDefault();
+
+                        // Si es notificación de evento, redirigir al detalle
+                        if (data?.tipo === 'evento' && data?.evento_id) {
+                            window.focus();
+                            window.location.href = '/eventos-publicos/' + data.evento_id;
                         } else {
-                            console.error('❌ Error al guardar token FCM:', data);
+                            window.focus();
                         }
-                    } catch (error) {
-                        console.error('❌ Error al enviar token FCM:', error);
-                    }
-                } 
-          </script> 
-                @endif
+
+                        notification.close();
+                    };
+                }
+            });
+        }
+        async function saveTokenToServer(token) {
+            try {
+                const response = await fetch('/save-fcm-token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        token
+                    })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    console.log('✅ Token FCM guardado correctamente:', data);
+                } else {
+                    console.error('❌ Error al guardar token FCM:', data);
+                }
+            } catch (error) {
+                console.error('❌ Error al enviar token FCM:', error);
+            }
+        }
+    </script>
+    @endif
 
     <!-- Botón flotante estilo WhatsApp - Solo para usuarios autenticados (excepto cocineros en vista cocina) -->
     @auth
     @php
-        $ajustesChat = app()->has('ajustes') ? app('ajustes') : \App\Models\Ajustes::first();
-        $esUsuarioBasico = Auth::user()->role_id >= 4;
-        $esAgenciaEventos = $ajustesChat->modo_operacion === 'agencia_eventos';
-        $mostrarChat = !$esCocineroEnCocina && !($esAgenciaEventos && $esUsuarioBasico);
+    $ajustesChat = app()->has('ajustes') ? app('ajustes') : \App\Models\Ajustes::first();
+    $esUsuarioBasico = Auth::user()->role_id >= 4;
+    $esAgenciaEventos = $ajustesChat->modo_operacion === 'agencia_eventos';
+    $mostrarChat = !$esCocineroEnCocina && !($esAgenciaEventos && $esUsuarioBasico);
     @endphp
     @if (app('site')->central == 0 && $mostrarChat)
     <button id="btnNotificacionFlotante" class="btn-flotante-notificacion" data-bs-toggle="modal" data-bs-target="#modalNotificacion" title="Enviar notificación a todos">
         <i class="bi bi-chat-dots-fill"></i>
     </button>
     @endif
-    
+
     <!-- Botón flotante para activar notificaciones (inferior derecha) -->
     @if((request()->secure() || str_contains(request()->getHost(), '127.0.0.1')) && !$esCocineroEnCocina)
     <button id="btnActivarNotificaciones" class="btn-flotante-activar-notificaciones" onclick="activarNotificacionesDesdeBoton()" title="Activar notificaciones push" style="display: none;">
@@ -1094,9 +1103,9 @@
                             <label for="mensajeNotificacion" class="form-label fw-semibold">
                                 <i class="bi bi-chat-text me-1"></i> Mensaje
                             </label>
-                            <textarea class="form-control" id="mensajeNotificacion" rows="4" 
-                                placeholder="Escribe tu mensaje para todos los usuarios..." 
-                                maxlength="200" 
+                            <textarea class="form-control" id="mensajeNotificacion" rows="4"
+                                placeholder="Escribe tu mensaje para todos los usuarios..."
+                                maxlength="200"
                                 required
                                 style="border-radius: 10px; border: 2px solid #e0e0e0; resize: none;"></textarea>
                             <div class="d-flex justify-content-between mt-2">
@@ -1123,15 +1132,15 @@
         #modalNotificacion {
             z-index: 9999 !important;
         }
-        
+
         #modalNotificacion .modal-backdrop {
             z-index: 9998 !important;
         }
-        
+
         .modal-backdrop.show {
             z-index: -1 !important;
         }
-        
+
         .btn-flotante-notificacion {
             position: fixed;
             bottom: 30px;
@@ -1151,17 +1160,17 @@
             transition: all 0.3s ease;
             z-index: 1000;
         }
-        
+
         .btn-flotante-notificacion:hover {
             transform: scale(1.1);
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
             background: linear-gradient(135deg, #c82333 0%, #dc3545 100%);
         }
-        
+
         .btn-flotante-notificacion:active {
             transform: scale(0.95);
         }
-        
+
         /* Botón flotante para activar notificaciones (inferior derecha) */
         .btn-flotante-activar-notificaciones {
             position: fixed;
@@ -1183,26 +1192,29 @@
             z-index: 1000;
             animation: pulseNotification 2s infinite;
         }
-        
+
         .btn-flotante-activar-notificaciones:hover {
             transform: scale(1.1);
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
             background: linear-gradient(135deg, #ff9800 0%, #ffc107 100%);
         }
-        
+
         .btn-flotante-activar-notificaciones:active {
             transform: scale(0.95);
         }
-        
+
         @keyframes pulseNotification {
-            0%, 100% {
+
+            0%,
+            100% {
                 transform: scale(1);
             }
+
             50% {
                 transform: scale(1.05);
             }
         }
-        
+
         @media (max-width: 768px) {
             .btn-flotante-notificacion {
                 bottom: 20px;
@@ -1211,7 +1223,7 @@
                 height: 50px;
                 font-size: 20px;
             }
-            
+
             .btn-flotante-activar-notificaciones {
                 bottom: 20px;
                 right: 20px;
@@ -1225,17 +1237,17 @@
     <script>
         async function enviarNotificacionGlobal() {
             const mensaje = document.getElementById('mensajeNotificacion').value.trim();
-            
+
             if (!mensaje) {
                 alert('Por favor escribe un mensaje');
                 return;
             }
-            
+
             const botonEnviar = document.getElementById('btnEnviarNotificacion');
             const iconoOriginal = botonEnviar.innerHTML;
             botonEnviar.disabled = true;
             botonEnviar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enviando...';
-            
+
             try {
                 const response = await fetch('/enviar-notificacion-global', {
                     method: 'POST',
@@ -1245,26 +1257,28 @@
                         'Accept': 'application/json'
                     },
                     credentials: 'same-origin',
-                    body: JSON.stringify({ mensaje })
+                    body: JSON.stringify({
+                        mensaje
+                    })
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (response.ok) {
                     // Éxito - mostrar confirmación
                     botonEnviar.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Enviado';
                     botonEnviar.classList.remove('btn-primary');
                     botonEnviar.classList.add('btn-success');
-                    
+
                     setTimeout(() => {
                         alert(`✅ Notificación enviada a ${data.enviadas} usuario(s)`);
                         document.getElementById('formNotificacion').reset();
                         document.getElementById('contadorCaracteres').textContent = '0/200';
-                        
+
                         // Cerrar modal
                         const modal = bootstrap.Modal.getInstance(document.getElementById('modalNotificacion'));
                         modal.hide();
-                        
+
                         // Restaurar botón
                         botonEnviar.disabled = false;
                         botonEnviar.innerHTML = iconoOriginal;
@@ -1277,23 +1291,23 @@
             } catch (error) {
                 console.error('Error al enviar notificación:', error);
                 alert('❌ Error: ' + error.message);
-                
+
                 // Restaurar botón en caso de error
                 botonEnviar.disabled = false;
                 botonEnviar.innerHTML = iconoOriginal;
             }
         }
-        
+
         // Contador de caracteres en tiempo real
         document.addEventListener('DOMContentLoaded', function() {
             const textarea = document.getElementById('mensajeNotificacion');
             const contador = document.getElementById('contadorCaracteres');
-            
+
             if (textarea && contador) {
                 textarea.addEventListener('input', function() {
                     const actual = this.value.length;
                     contador.textContent = `${actual}/200`;
-                    
+
                     if (actual > 180) {
                         contador.classList.add('text-danger');
                         contador.classList.remove('text-muted');
@@ -1326,19 +1340,19 @@
         }
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js?v=281120252245"></script>
-    
+
     <!-- Offline Manager para PWA -->
     <script src="{{ asset('js/offline-manager.js') }}?v={{ time() }}" defer></script>
-    
+
     <!-- 🎄 Script de nieve navideña -->
     <script>
         // Activar del 15 de diciembre al 6 de enero
         const now = new Date();
         const mes = now.getMonth(); // 11 = diciembre, 0 = enero (0-indexed)
         const dia = now.getDate();
-        
+
         const esTemporadaNavidad = (mes === 11 && dia >= 15) || (mes === 0 && dia <= 6);
-        
+
         if (esTemporadaNavidad) {
             function createSnowflake() {
                 const snowflake = document.createElement('div');
@@ -1349,15 +1363,15 @@
                 snowflake.style.fontSize = Math.random() * 0.4 + 0.4 + 'em'; // 0.4-0.8em (más pequeños)
                 snowflake.style.opacity = Math.random() * 0.4 + 0.3; // 0.3-0.7 (más sutiles)
                 document.body.appendChild(snowflake);
-                
+
                 setTimeout(() => snowflake.remove(), 10000);
             }
-            
+
             // Crear 1 copo cada 1500ms (más espaciados)
             setInterval(createSnowflake, 1500);
         }
     </script>
-    
+
     @stack('scripts')
 </body>
 

@@ -98,12 +98,6 @@
             font-weight: bold;
         }
 
-        .item-tax {
-            font-size: 11px;
-            color: #333;
-            margin-top: 1px;
-        }
-
         .separator {
             border-bottom: 1px dashed #000;
             margin: 8px 0;
@@ -234,7 +228,6 @@
                     <td class="item-total">{{ number_format($linea['total'], 2, ',', '.') }} €</td>
                 </tr>
             </table>
-            <div class="item-tax">IVA {{ number_format($linea['iva'], 0) }}%</div>
         </div>
         @endforeach
     </div>
