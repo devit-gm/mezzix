@@ -163,8 +163,13 @@ class FichasController extends Controller
                 ? collect([$ficha->usuario])->filter()
                 : $ficha->inscritos;
 
-            $ficha->total_comensales = $usuariosFicha->sum(fn($u) => 1 + ($u->invitados ?? 0) + ($u->ninos ?? 0));
-            $ficha->total_ninos      = $usuariosFicha->sum(fn($u) => $u->ninos ?? 0);
+            $ficha->total_ninos = $usuariosFicha->sum(fn($u) => $u->ninos ?? 0);
+            // En fichas infantiles solo cuentan los niños como comensales
+            if (!empty($ficha->es_infantil)) {
+                $ficha->total_comensales = $ficha->total_ninos;
+            } else {
+                $ficha->total_comensales = $usuariosFicha->sum(fn($u) => 1 + ($u->invitados ?? 0) + ($u->ninos ?? 0));
+            }
 
             // Agregar información de si el usuario está apuntado (para eventos tipo 4)
             if ($ficha->tipo == 4) {
@@ -228,7 +233,8 @@ class FichasController extends Controller
             'descripcion_evento' => $request->descripcion_evento,
             'ubicacion_evento' => $request->ubicacion_evento,
             'aforo_maximo' => $request->aforo_maximo,
-            'inscritos_actuales' => 0
+            'inscritos_actuales' => 0,
+            'es_infantil' => ($request->tipo == 2 && $request->boolean('es_infantil')),
         ]);
 
         // Si es un evento (tipo 4) y estamos en modo agencia, notificar a usuarios
@@ -327,7 +333,8 @@ class FichasController extends Controller
             'foto_evento' => $ficha->foto_evento,
             'descripcion_evento' => $request->descripcion_evento,
             'ubicacion_evento' => $request->ubicacion_evento,
-            'aforo_maximo' => $request->aforo_maximo
+            'aforo_maximo' => $request->aforo_maximo,
+            'es_infantil' => ($request->tipo == 2 && $request->boolean('es_infantil')),
         ]);
 
         $ajustes = \DB::connection('site')->table('ajustes')->first();
@@ -562,10 +569,24 @@ class FichasController extends Controller
         $cargoInvitados = $this->calcularCargoInvitadosUsuarioActual($ficha, $ajustes);
 
         $total = $subtotal + $totalIva;
+
+        // Calcular importe por niños del usuario actual (solo fichas infantiles)
+        $cargoNinos = 0;
+        if (!empty($ficha->es_infantil) && Auth::check()) {
+            $fichaUsuarioActual = FichaUsuario::where('id_ficha', $ficha->uuid)
+                ->where('user_id', Auth::id())
+                ->first();
+            if ($fichaUsuarioActual && ($fichaUsuarioActual->ninos ?? 0) > 0) {
+                $totalNinosFicha = $ficha->usuarios->sum('ninos');
+                $precioComensal = $totalNinosFicha > 0 ? $total / $totalNinosFicha : 0;
+                $cargoNinos = $precioComensal * $fichaUsuarioActual->ninos;
+            }
+        }
+
         $site = get_site();
 
         // Generar PDF usando dompdf
-        $pdf = PDF::loadView('fichas.ticket-pdf', compact('ficha', 'lineas', 'subtotal', 'totalIva', 'total', 'ivaDesglose', 'ajustes', 'site', 'cargoInvitados'));
+        $pdf = PDF::loadView('fichas.ticket-pdf', compact('ficha', 'lineas', 'subtotal', 'totalIva', 'total', 'ivaDesglose', 'ajustes', 'site', 'cargoInvitados', 'cargoNinos'));
 
         // Configurar ancho de ticket (80mm = 226.77 puntos)
         $pdf->setPaper([0, 0, 226.77, 841.89], 'portrait');
@@ -936,16 +957,24 @@ class FichasController extends Controller
         // if ($ficha->invitados_grupo > 0) {
         //     $total_comensales += $ficha->invitados_grupo;
         // }
-        $ficha->total_comensales = $total_comensales - $total_ninos;
+
+        // En fichas infantiles solo cuentan los niños como comensales
+        if (!empty($ficha->es_infantil)) {
+            $ficha->total_comensales = $total_ninos;
+            $divisorPrecio = $total_ninos;
+        } else {
+            $ficha->total_comensales = $total_comensales - $total_ninos;
+            $divisorPrecio = $total_comensales - $total_ninos;
+        }
 
         // Calcular total gastos con consulta directa
         $total_gastos = FichaGasto::where('id_ficha', $ficha->uuid)->sum('precio');
         $ficha->total_gastos = $total_gastos;
 
-        if ($total_comensales == 0) {
+        if ($divisorPrecio == 0) {
             $ficha->precio_comensal = 0;
         } else {
-            $ficha->precio_comensal = $ficha->precio / ($total_comensales - $total_ninos);
+            $ficha->precio_comensal = $ficha->precio / $divisorPrecio;
         }
 
         // Calcular desglose de IVA
@@ -998,9 +1027,11 @@ class FichasController extends Controller
 
         $ajustes = Ajustes::first();
 
-        // Calcular cargo por invitados del usuario actual
+        // Calcular cargo por invitados y niños del usuario actual
         $cargoInvitados = 0;
         $numInvitadosUsuario = 0;
+        $cargoNinos = 0;
+        $numNinosUsuario = 0;
         if ($ficha->tipo != 3) {
             $fichaUsuario = FichaUsuario::where('id_ficha', $ficha->uuid)
                 ->where('user_id', Auth::id())
@@ -1022,9 +1053,14 @@ class FichasController extends Controller
 
                 $cargoInvitados = $invitados_a_cobrar * $ajustes->precio_invitado;
             }
+
+            if ($fichaUsuario && ($fichaUsuario->ninos ?? 0) > 0) {
+                $numNinosUsuario = $fichaUsuario->ninos;
+                $cargoNinos = $numNinosUsuario * $ficha->precio_comensal;
+            }
         }
 
-        return view('fichas.resumen', compact('ficha', 'ajustes', 'ivaDesglose', 'totalBaseImponible', 'totalIva', 'cargoInvitados', 'numInvitadosUsuario'));
+        return view('fichas.resumen', compact('ficha', 'ajustes', 'ivaDesglose', 'totalBaseImponible', 'totalIva', 'cargoInvitados', 'numInvitadosUsuario', 'cargoNinos', 'numNinosUsuario'));
     }
 
     public function enviar($uuid)
@@ -1047,57 +1083,76 @@ class FichasController extends Controller
             ]);
         }
         if ($ficha->tipo != 3) {
-            //Obtenemos el precio total por comensal
-            $total_comensales = 0;
             $usuarios = FichaUsuario::where('id_ficha', $uuid)->get();
-            foreach ($usuarios as $usuario) {
-                $total_comensales += $usuario->invitados;
-                $total_comensales++;
-            }
 
-            // De momento los invitados de grupo no cuentan
-            // if ($ficha->invitados_grupo > 0) {
-            //     $total_comensales += $ficha->invitados_grupo;
-            // }
-            $precio_comensal = $ficha->precio / $total_comensales;
-            //Insertamos en la tabla ficha_recibos el gasto por comensal
-            //Que es el precio por comensal * número de invitados de cada usuario
-            //Hay que añadir el gasto del propio comensal
-            foreach ($usuarios as $usuario) {
-                $num_invitados = $usuario->invitados;
+            if (!empty($ficha->es_infantil)) {
+                // Fichas infantiles: cada socio paga precio_comensal × sus niños apuntados
+                $total_ninos = $usuarios->sum(fn($u) => $u->ninos ?? 0);
+                $precio_comensal = $total_ninos > 0 ? $ficha->precio / $total_ninos : 0;
 
-                // Calcular precio base por comensal (usuario + invitados)
-                $precio_recibo = $precio_comensal * ($num_invitados + 1);
+                foreach ($usuarios as $usuario) {
+                    $num_ninos = $usuario->ninos ?? 0;
+                    if ($num_ninos <= 0) continue;
 
-                // Sumar el cargo adicional por invitados (1€ por invitado)
-                if ($num_invitados > 0) {
-                    $invitados_a_cobrar = $num_invitados;
-
-                    // Aplicar límite máximo de invitados con cargo
-                    if ($num_invitados > $ajustes->max_invitados_cobrar) {
-                        $invitados_a_cobrar = $ajustes->max_invitados_cobrar;
-                    }
-
-                    // Si el primer invitado es gratis, restar 1
-                    if ($ajustes->primer_invitado_gratis && $invitados_a_cobrar > 0) {
-                        $invitados_a_cobrar--;
-                    }
-
-                    // Sumar el cargo por invitados
-                    $precio_recibo += $invitados_a_cobrar * $ajustes->precio_invitado;
+                    FichaRecibo::create([
+                        'uuid' => (string) Uuid::uuid4(),
+                        'id_ficha' => $uuid,
+                        'user_id' => $usuario->user_id,
+                        'tipo' => 1,
+                        'estado' => $ajustes->facturar_ficha_automaticamente ? 1 : 0,
+                        'precio' => $precio_comensal * $num_ninos,
+                        'fecha' => Carbon::now()
+                    ]);
+                }
+            } else {
+                // Fichas normales: precio_comensal × (usuario + invitados)
+                $total_comensales = 0;
+                foreach ($usuarios as $usuario) {
+                    $total_comensales += $usuario->invitados;
+                    $total_comensales++;
                 }
 
-                //si en la configuración del sitio las fichas se facturan de forma automática el estado se pone a 1
+                // De momento los invitados de grupo no cuentan
+                // if ($ficha->invitados_grupo > 0) {
+                //     $total_comensales += $ficha->invitados_grupo;
+                // }
+                $precio_comensal = $total_comensales > 0 ? $ficha->precio / $total_comensales : 0;
 
-                FichaRecibo::create([
-                    'uuid' => (string) Uuid::uuid4(),
-                    'id_ficha' => $uuid,
-                    'user_id' => $usuario->user_id,
-                    'tipo' => 1,
-                    'estado' => $ajustes->facturar_ficha_automaticamente ? 1 : 0,
-                    'precio' => $precio_recibo,
-                    'fecha' => Carbon::now()
-                ]);
+                foreach ($usuarios as $usuario) {
+                    $num_invitados = $usuario->invitados;
+
+                    // Calcular precio base por comensal (usuario + invitados)
+                    $precio_recibo = $precio_comensal * ($num_invitados + 1);
+
+                    // Sumar el cargo adicional por invitados
+                    if ($num_invitados > 0) {
+                        $invitados_a_cobrar = $num_invitados;
+
+                        // Aplicar límite máximo de invitados con cargo
+                        if ($num_invitados > $ajustes->max_invitados_cobrar) {
+                            $invitados_a_cobrar = $ajustes->max_invitados_cobrar;
+                        }
+
+                        // Si el primer invitado es gratis, restar 1
+                        if ($ajustes->primer_invitado_gratis && $invitados_a_cobrar > 0) {
+                            $invitados_a_cobrar--;
+                        }
+
+                        // Sumar el cargo por invitados
+                        $precio_recibo += $invitados_a_cobrar * $ajustes->precio_invitado;
+                    }
+
+                    // Si en la configuración las fichas se facturan automáticamente el estado se pone a 1
+                    FichaRecibo::create([
+                        'uuid' => (string) Uuid::uuid4(),
+                        'id_ficha' => $uuid,
+                        'user_id' => $usuario->user_id,
+                        'tipo' => 1,
+                        'estado' => $ajustes->facturar_ficha_automaticamente ? 1 : 0,
+                        'precio' => $precio_recibo,
+                        'fecha' => Carbon::now()
+                    ]);
+                }
             }
 
             //Descontamos el stock de cada artículo consumido y liberamos las reservas

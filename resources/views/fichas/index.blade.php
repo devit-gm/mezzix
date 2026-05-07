@@ -190,6 +190,15 @@ $rutaPrefix = $esAgenciaEventos ? 'eventos.gestion' : 'fichas';
                                                     </span>
 
                                                     @elseif($ficha->tipo == 2)
+                                                    @if($ficha->es_infantil)
+                                                    <div>
+                                                        <i class="bi bi-person-fill"></i> {{ $ficha->total_ninos }}
+                                                    </div>
+                                                    <span class="badge-tipo conjunta">
+                                                        <i class="bi bi-balloon-heart"></i>
+                                                        {{ __('Infantil') }}
+                                                    </span>
+                                                    @else
                                                     <div>
                                                         <i class="bi bi-people-fill"></i> {{ $ficha->total_comensales }}
                                                         <i class="bi bi-person-standing"></i> {{ $ficha->total_comensales - $ficha->total_ninos }}
@@ -199,6 +208,7 @@ $rutaPrefix = $esAgenciaEventos ? 'eventos.gestion' : 'fichas';
                                                         <i class="bi bi-people-fill"></i>
                                                         {{ __('Conjunta') }}
                                                     </span>
+                                                    @endif
 
                                                     @elseif($ficha->tipo == 3)
                                                     <span class="badge-tipo compra">

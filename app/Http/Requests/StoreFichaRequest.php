@@ -32,6 +32,7 @@ class StoreFichaRequest extends FormRequest
             'hora' => 'nullable|date_format:H:i',
             'menu' => 'nullable|string|max:500',
             'responsables' => 'nullable|string|max:255',
+            'es_infantil' => 'nullable|boolean',
         ];
 
         // Reglas específicas para modo agencia de eventos (tipo 4)

@@ -40,8 +40,8 @@ class FichaService
         // Sumar consumos, servicios y gastos
         $precio = $this->calcularConsumos($ficha);
         
-        // Añadir invitados si corresponde
-        if ($sumarInvitados) {
+        // Añadir invitados si corresponde (nunca en fichas infantiles)
+        if ($sumarInvitados && empty($ficha->es_infantil)) {
             $precio += $this->calcularInvitados($ficha, $ajustes);
         }
         

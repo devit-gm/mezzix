@@ -40,10 +40,12 @@ class Ficha extends Model
         'foto_evento',
         'ubicacion_evento',
         'aforo_maximo',
-        'inscritos_actuales'
+        'inscritos_actuales',
+        'es_infantil'
     ];
 
     protected $casts = [
+        'es_infantil' => 'boolean',
         'fecha' => 'date',
         'hora_apertura' => 'datetime',
         'hora_cierre' => 'datetime'

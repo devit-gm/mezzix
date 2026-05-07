@@ -30,6 +30,7 @@ class UpdateFichaRequest extends FormRequest
             'menu' => 'nullable|string|max:500',
             'responsables' => 'nullable|string|max:255',
             'observaciones' => 'nullable|string|max:1000',
+            'es_infantil' => 'nullable|boolean',
         ];
 
         // Reglas específicas para eventos (tipo 4)

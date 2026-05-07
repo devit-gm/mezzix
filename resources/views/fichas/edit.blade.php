@@ -150,8 +150,22 @@ $rutaPrefix = $esAgenciaEventos ? 'eventos.gestion' : 'fichas';
                                     <label for="invitados_grupo" class="fw-bold form-label">{{ __('Invitados grupo') }}</label>
                                     <input class="form-control" type="number" min="0" name="invitados_grupo" id="invitados_grupo" value="{{ $ficha->invitados_grupo }}">
                                 </div>
+
+                                <div class="form-group mb-3" id="campo-infantil">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch"
+                                               id="es_infantil" name="es_infantil" value="1"
+                                               {{ $ficha->es_infantil ? 'checked' : '' }}
+                                               @if($ficha->estado == 1) disabled @endif>
+                                        <label class="form-check-label fw-bold" for="es_infantil">
+                                            <i class="bi bi-balloon-heart"></i> {{ __('Ficha infantil') }}
+                                        </label>
+                                        <small class="d-block text-muted">{{ __('Sin cargo por invitados. Solo cuentan los niños como comensales.') }}</small>
+                                    </div>
+                                </div>
                                 @else
                                 <input type="hidden" name="invitados_grupo" value="{{ $ficha->invitados_grupo }}" />
+                                <input type="hidden" name="es_infantil" value="0" />
                                 @endif
 
                                 <div class="form-group mb-3">

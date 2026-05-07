@@ -204,6 +204,15 @@
             <span>{{ $ficha->camarero->name }}</span>
         </div>
         @endif
+        @if(!empty($ficha->es_infantil))
+        @php $totalNinosTicket = $ficha->usuarios ? $ficha->usuarios->sum('ninos') : 0; @endphp
+        @if($totalNinosTicket > 0)
+        <div class="info-row">
+            <span class="info-label">NIÑOS:</span>
+            <span>{{ $totalNinosTicket }}</span>
+        </div>
+        @endif
+        @else
         @php
         $totalComensales = 0;
         if ($ficha->usuarios && $ficha->usuarios->count() > 0) {
@@ -215,6 +224,7 @@
             <span class="info-label">COMENSALES:</span>
             <span>{{ $totalComensales }}</span>
         </div>
+        @endif
         @endif
     </div>
 
@@ -248,6 +258,16 @@
                 <tr>
                     <td class="total-label">Cargo invitados ({{ $cargoInvitados['cantidad_cobrada'] }}):</td>
                     <td class="total-value">{{ number_format($cargoInvitados['importe'], 2, ',', '.') }} €</td>
+                </tr>
+            </table>
+        </div>
+        @endif
+        @if(isset($cargoNinos) && $cargoNinos > 0)
+        <div class="total-row extra-charge-row">
+            <table class="total-line">
+                <tr>
+                    <td class="total-label">Importe por tus niños:</td>
+                    <td class="total-value">{{ number_format($cargoNinos, 2, ',', '.') }} €</td>
                 </tr>
             </table>
         </div>

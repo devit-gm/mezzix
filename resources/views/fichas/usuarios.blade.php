@@ -132,7 +132,9 @@
                 @if($ficha->estado == 0)
                     <th>-</th>
                 @endif
+                @if(empty($ficha->es_infantil))
                 <th><i class="bi bi-person-standing"></i></th>
+                @endif
                 <th><i class="bi bi-person-fill"></i></th>
             @endif
         </tr>
@@ -182,8 +184,11 @@
                 </td>
                 @endif
 
-                <!-- Invitados -->
-                <td class="align-middle text-center justify-content-center align-items-center" ">
+                <!-- Invitados adultos (oculto en fichas infantiles) -->
+                @if(!empty($ficha->es_infantil))
+                <input type="hidden" name="invitados[{{ $usuario->id }}]" value="0">
+                @else
+                <td class="align-middle text-center justify-content-center align-items-center">
                     <select class="form-control form-select"
                             name="invitados[{{ $usuario->id }}]"
                             id="invitados[{{ $usuario->id }}]"
@@ -196,6 +201,7 @@
                         @endfor
                     </select>
                 </td>
+                @endif
 
                 <!-- Niños -->
                 <td class="align-middle text-center justify-content-center align-items-center" >
@@ -263,7 +269,19 @@
                     @endif
                 @endif
                 <a class="btn btn-dark mx-1" href={{ fichaRoute('servicios', $ficha->uuid) }}><i class="bi bi-chevron-right"></i></a>
-                <button class="btn btn-dark mx-1" style="position: absolute;   right: 12px;    border: 0 !important; font-size: 0.8em !important; box-shadow:none"><i class="bi bi-people" style="font-size: 1.5em !important;"></i> {{ $ficha->total_comensales }}</button>
+                @php
+                    $totalIndicador = $ficha->es_infantil
+                        ? $usuariosFicha->sum(fn($u) => $u->ninos ?? 0)
+                        : $usuariosFicha->sum(fn($u) => 1 + ($u->invitados ?? 0) + ($u->ninos ?? 0));
+                @endphp
+                <button class="btn btn-dark mx-1" style="position: absolute; right: 12px; border: 0 !important; font-size: 0.8em !important; box-shadow:none">
+                    @if($ficha->es_infantil)
+                        <i class="bi bi-person-fill" style="font-size: 1.5em !important;"></i>
+                    @else
+                        <i class="bi bi-people" style="font-size: 1.5em !important;"></i>
+                    @endif
+                    {{ $totalIndicador }}
+                </button>
             </div>
         </form>
     @endif

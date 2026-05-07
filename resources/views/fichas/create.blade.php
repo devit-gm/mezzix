@@ -130,6 +130,19 @@
                                     <label for="responsables" class="fw-bold">{{ __('Responsable/s') }}:</label><br>
                                     <input type="text" class="form-control" id="responsables" name="responsables" value="{{ old('responsables') }}">
                                 </div>
+
+                                {{-- Opción infantil: solo visible cuando tipo = Conjunta --}}
+                                <div class="form-group mb-3" id="campo-infantil" style="display:none">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" role="switch"
+                                               id="es_infantil" name="es_infantil" value="1"
+                                               {{ old('es_infantil') ? 'checked' : '' }}>
+                                        <label class="form-check-label fw-bold" for="es_infantil">
+                                            <i class="bi bi-balloon-heart"></i> {{ __('Ficha infantil') }}
+                                        </label>
+                                        <small class="d-block text-muted">{{ __('Sin cargo por invitados. Solo cuentan los niños como comensales.') }}</small>
+                                    </div>
+                                </div>
                                 @endif
                             </form>
                         </div>
@@ -142,6 +155,24 @@
 </div>
 @endsection
 	@section('footer')
+
+@push('scripts')
+<script>
+(function () {
+    var tipoSel = document.getElementById('tipo');
+    var campoInfantil = document.getElementById('campo-infantil');
+    if (!tipoSel || !campoInfantil) return;
+    function toggleInfantil() {
+        campoInfantil.style.display = (tipoSel.value === '2') ? '' : 'none';
+        if (tipoSel.value !== '2') {
+            document.getElementById('es_infantil').checked = false;
+        }
+    }
+    tipoSel.addEventListener('change', toggleInfantil);
+    toggleInfantil();
+}());
+</script>
+@endpush
 
                 <div class="card-footer">
                     <form>
