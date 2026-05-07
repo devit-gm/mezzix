@@ -44,6 +44,10 @@ return [
 
     'debug' => (bool) env('APP_DEBUG', false),
 
+    'perf_monitor' => (bool) env('PERF_MONITOR', false),
+
+    'health_token' => env('HEALTH_TOKEN', null),
+
     /*
     |--------------------------------------------------------------------------
     | Application URL
@@ -170,7 +174,7 @@ return [
         App\Providers\RouteServiceProvider::class,
         App\Providers\MailConfigServiceProvider::class,
         App\Providers\ServiceLayerServiceProvider::class,
-         Barryvdh\DomPDF\ServiceProvider::class
+        Barryvdh\DomPDF\ServiceProvider::class
     ])->toArray(),
 
     /*

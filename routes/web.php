@@ -40,7 +40,7 @@ use App\Services\FirebaseService;
 Route::get('/manifest.json', [ManifestController::class, 'show'])->name('manifest');
 
 // Ruta protegida para ejecución de cron desde IONOS
-Route::get('/cron/reservas-verificar/{token}', function($token) {
+Route::get('/cron/reservas-verificar/{token}', function ($token) {
     if ($token !== env('CRON_SECRET')) {
         abort(403);
     }
@@ -58,18 +58,18 @@ Route::middleware(['detect.site', 'auth'])->group(function () {
             \Log::warning('Tabla ajustes no encontrada en ruta raíz', ['error' => $e->getMessage()]);
             $modoOperacion = 'fichas';
         }
-        
+
         if ($modoOperacion === 'mesas') {
             return redirect()->route('mesas.index');
         }
-        
+
         if ($modoOperacion === 'agencia_eventos') {
             return redirect()->route('eventos-publicos.index');
         }
-        
+
         return app(FichasController::class)->index();
     })->name('home');
-    
+
     Route::get('/home', function () {
         try {
             $ajustes = \App\Models\Ajustes::first();
@@ -78,15 +78,15 @@ Route::middleware(['detect.site', 'auth'])->group(function () {
             \Log::warning('Tabla ajustes no encontrada en ruta /home', ['error' => $e->getMessage()]);
             $modoOperacion = 'fichas';
         }
-        
+
         if ($modoOperacion === 'mesas') {
             return redirect()->route('mesas.index');
         }
-        
+
         if ($modoOperacion === 'agencia_eventos') {
             return redirect()->route('eventos-publicos.index');
         }
-        
+
         return app(FichasController::class)->index();
     });
 
@@ -159,7 +159,7 @@ Route::middleware(['detect.site', 'auth'])->group(function () {
     Route::post('/eventos/{uuid}/inscribirse', [App\Http\Controllers\EventosPublicosController::class, 'inscribirse'])->name('eventos-publicos.inscribirse');
     Route::delete('/eventos/{uuid}/cancelar', [App\Http\Controllers\EventosPublicosController::class, 'cancelarInscripcion'])->name('eventos-publicos.cancelar');
     Route::get('/mis-inscripciones', [App\Http\Controllers\EventosPublicosController::class, 'misInscripciones'])->name('eventos-publicos.mis-inscripciones');
-    
+
     // Rutas de gestión de eventos para administradores (modo agencia_eventos)
     Route::get('/eventos/gestion/lista', [FichasController::class, 'index'])->name('eventos.gestion.index');
     Route::put('/eventos/gestion/lista', [FichasController::class, 'index'])->name('eventos.gestion.index.filter');
@@ -181,7 +181,7 @@ Route::middleware(['detect.site', 'auth'])->group(function () {
     Route::get('/mesas/{mesaId}/resumen', [MesasController::class, 'resumen'])->name('mesas.resumen');
     Route::post('/mesas/{mesaId}/cerrar', [MesasController::class, 'cerrar'])->name('mesas.cerrar');
     Route::post('/mesas/{mesaId}/liberar', [MesasController::class, 'liberar'])->name('mesas.liberar');
-    
+
     // Rutas alias para mesas (apuntan al mismo controlador que fichas)
     Route::get('/mesas/{uuid}/lista', [FichasController::class, 'lista'])->name('mesas.lista');
     Route::get('/mesas/{uuid}/familias', [FichasController::class, 'familias'])->name('mesas.familias');
@@ -212,13 +212,13 @@ Route::middleware(['detect.site', 'auth'])->group(function () {
     Route::get('/informes', [InformesController::class, 'index'])->name('informes.index');
     Route::put('/informes', [InformesController::class, 'index'])->name('informes.balance');
     Route::put('/informes/facturar', [InformesController::class, 'facturar'])->name('informes.facturar');
-    
+
     // Informes para modo mesas
     Route::get('/informes/ventas-productos', [InformesController::class, 'informeProductos'])->name('informes.ventas-productos');
     Route::get('/informes/ventas-camareros', [InformesController::class, 'ventasCamareros'])->name('informes.ventas-camareros');
     Route::get('/informes/ocupacion-mesas', [InformesController::class, 'ocupacionMesas'])->name('informes.ocupacion-mesas');
     Route::get('/informes/horas-pico', [InformesController::class, 'horasPico'])->name('informes.horas-pico');
-    
+
     // Informes para modo fichas
     Route::get('/informes/ventas-productos-fichas', [InformesController::class, 'ventasProductosFichas'])->name('informes.ventas-productos-fichas');
     Route::get('/informes/ventas-socios', [InformesController::class, 'ventasSocios'])->name('informes.ventas-socios');
@@ -226,17 +226,17 @@ Route::middleware(['detect.site', 'auth'])->group(function () {
     Route::get('/informes/evolucion-temporal', [InformesController::class, 'evolucionTemporal'])->name('informes.evolucion-temporal');
 
     Route::get('/facturacion', [FacturacionController::class, 'index'])->name('facturacion.index');
-    
+
     // Facturas de mesas
     Route::get('/facturas', [FacturaMesaController::class, 'index'])->name('facturas.index');
     Route::get('/facturas/crear/{mesaId}', [FacturaMesaController::class, 'crear'])->name('facturas.crear');
     Route::post('/facturas/{mesaId}', [FacturaMesaController::class, 'store'])->name('facturas.store');
     Route::get('/facturas/{id}/show', [FacturaMesaController::class, 'show'])->name('facturas.show');
     Route::get('/facturas/{id}/pdf', [FacturaMesaController::class, 'pdf'])->name('facturas.pdf');
-    
+
     // Ticket de mesa
     Route::get('/mesas/{mesaId}/ticket', [FichasController::class, 'generarTicket'])->name('mesas.ticket');
-    
+
     // Ticket de ficha (descarga PDF) - Impresora térmica 80mm
     Route::get('/fichas/{uuid}/ticket', [FichasController::class, 'descargarTicket'])->name('fichas.ticket');
 
@@ -298,12 +298,12 @@ Route::middleware(['detect.site', 'auth'])->group(function () {
     Route::put('/licencias/error', [LicenciasController::class, 'error'])->name('licencias.error');
 
     Route::post('/send-sms', [SmsController::class, 'sendSms'])->name('sms.enviar');
-    
+
     Route::get('/contacto', [ContactoController::class, 'index'])->name('contacto.index');
     Route::post('/contacto', [ContactoController::class, 'send'])->name('contacto.send');
     Route::post('/save-fcm-token', [NotificationController::class, 'saveToken'])->middleware('auth');
     Route::post('/enviar-notificacion-global', [NotificationController::class, 'enviarNotificacionGlobal'])->middleware('auth');
-    
+
     // Ruta temporal de prueba para Firebase (requiere vendor/kreait en servidor)
     /*
     Route::get('/test-firebase', function (FirebaseService $firebase) {
@@ -338,9 +338,9 @@ Route::middleware(['detect.site', 'auth'])->group(function () {
         }
     });
     */
-    
+
     // Ruta para verificar token FCM
-    Route::get('/check-fcm-token', function() {
+    Route::get('/check-fcm-token', function () {
         $user = auth()->user();
         return response()->json([
             'user_id' => $user->id,
@@ -350,14 +350,14 @@ Route::middleware(['detect.site', 'auth'])->group(function () {
             'token_length' => $user->fcm_token ? strlen($user->fcm_token) : 0
         ]);
     });
-    
+
     // Ruta temporal para limpiar caché (eliminar después de usar)
-    Route::get('/clear-cache-temp', function() {
+    Route::get('/clear-cache-temp', function () {
         \Artisan::call('config:clear');
         \Artisan::call('cache:clear');
         \Artisan::call('route:clear');
         \Artisan::call('view:clear');
-        
+
         return response()->json([
             'success' => true,
             'message' => 'Caché limpiada correctamente'
@@ -368,3 +368,77 @@ Route::middleware(['detect.site', 'auth'])->group(function () {
 Auth::routes();
 
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
+
+// ─── Diagnóstico del servidor (solo con token secreto) ──────────────────────
+Route::get('/server-health', function () {
+    $token = request()->query('token');
+    if (!$token || $token !== config('app.health_token')) {
+        abort(403);
+    }
+
+    $start = microtime(true);
+
+    // 1. Ping a BD central
+    $dbCentral = 'N/A';
+    try {
+        $t = microtime(true);
+        \DB::connection('central')->select('SELECT 1');
+        $dbCentral = round((microtime(true) - $t) * 1000, 2) . 'ms';
+    } catch (\Throwable $e) {
+        $dbCentral = 'ERROR: ' . $e->getMessage();
+    }
+
+    // 2. Ping a BD del site
+    $dbSite = 'N/A';
+    try {
+        $t = microtime(true);
+        \DB::connection('site')->select('SELECT 1');
+        $dbSite = round((microtime(true) - $t) * 1000, 2) . 'ms';
+    } catch (\Throwable $e) {
+        $dbSite = 'ERROR: ' . $e->getMessage();
+    }
+
+    // 3. Caché write/read/delete
+    $cacheOk = 'N/A';
+    try {
+        $t = microtime(true);
+        \Cache::put('health_check', 1, 10);
+        \Cache::get('health_check');
+        \Cache::forget('health_check');
+        $cacheOk = round((microtime(true) - $t) * 1000, 2) . 'ms (' . config('cache.default') . ')';
+    } catch (\Throwable $e) {
+        $cacheOk = 'ERROR: ' . $e->getMessage();
+    }
+
+    // 4. Escritura en disco (storage)
+    $diskOk = 'N/A';
+    try {
+        $t = microtime(true);
+        $path = storage_path('framework/cache/health_test.tmp');
+        file_put_contents($path, '1');
+        file_get_contents($path);
+        unlink($path);
+        $diskOk = round((microtime(true) - $t) * 1000, 2) . 'ms';
+    } catch (\Throwable $e) {
+        $diskOk = 'ERROR: ' . $e->getMessage();
+    }
+
+    // 5. Info del servidor
+    $loadAvg = function_exists('sys_getloadavg') ? sys_getloadavg() : ['N/A'];
+
+    return response()->json([
+        'timestamp'       => now()->toIso8601String(),
+        'php_version'     => PHP_VERSION,
+        'laravel_version' => app()->version(),
+        'env'             => app()->environment(),
+        'cache_driver'    => config('cache.default'),
+        'session_driver'  => config('session.driver'),
+        'db_central_ping' => $dbCentral,
+        'db_site_ping'    => $dbSite,
+        'cache_rw'        => $cacheOk,
+        'disk_rw'         => $diskOk,
+        'memory_peak_mb'  => round(memory_get_peak_usage(true) / 1024 / 1024, 2),
+        'load_avg'        => $loadAvg,
+        'total_ms'        => round((microtime(true) - $start) * 1000, 2),
+    ]);
+})->withoutMiddleware([\App\Http\Middleware\DetectSite::class, \App\Http\Middleware\CacheAjustes::class]);

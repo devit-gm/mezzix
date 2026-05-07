@@ -35,16 +35,17 @@ class AppServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             return;
         }
-        
+
         // Saltar en rutas de autenticación para evitar 500 antes de login
         if ($request->is('login', 'register', 'password/*', 'logout')) {
             return;
         }
-        
+
         $domain = $request->getHost();
-        
+
         try {
-            $site = Site::where('dominio', $domain)->first();
+            // Usar el helper cacheado en lugar de una query directa
+            $site = get_site();
 
             if (!$site) {
                 // Solo abortar si no es una ruta API
@@ -60,7 +61,7 @@ class AppServiceProvider extends ServiceProvider
             $ajustes = \Cache::remember("ajustes_site_{$site->uuid}", 3600, function () {
                 return DB::connection('site')->table('ajustes')->first();
             });
-            
+
             if ($ajustes) {
                 app()->instance('ajustes', $ajustes);
             }
@@ -84,10 +85,9 @@ class AppServiceProvider extends ServiceProvider
             config(['site.favicon' => $site->favicon]);
 
             $this->defineSiteRoutes($site);
-            
+
             // OPTIMIZADO: Eager loading global para prevenir N+1 queries
             $this->configureEagerLoading();
-            
         } catch (\Exception $e) {
             // 🚨 Loggear errores pero no romper la app
             Log::error('Error en AppServiceProvider::boot', [
@@ -95,29 +95,30 @@ class AppServiceProvider extends ServiceProvider
                 'domain' => $domain,
                 'url' => $request->fullUrl()
             ]);
-            
+
             // Si es request web, mostrar error amigable
             if (!$request->is('api/*')) {
                 abort(500, 'Error al cargar configuración del sitio');
             }
         }
     }
-    
+
     /**
      * Configurar eager loading por defecto en modelos críticos
+     * Solo se ejecuta una vez usando una flag estática para evitar overhead por request
      */
     protected function configureEagerLoading()
     {
-        // FichaProducto siempre carga su producto relacionado
-        FichaProducto::preventLazyLoading(!app()->isProduction());
-        
-        // Producto siempre carga composición cuando se accede
-        Producto::preventLazyLoading(!app()->isProduction());
-        
-        // ComposicionProducto siempre carga el componente
-        ComposicionProducto::preventLazyLoading(!app()->isProduction());
-        
-        Log::info('Eager loading global configurado para prevenir N+1 queries');
+        static $configured = false;
+        if ($configured) {
+            return;
+        }
+        $configured = true;
+
+        $isNotProduction = !app()->isProduction();
+        FichaProducto::preventLazyLoading($isNotProduction);
+        Producto::preventLazyLoading($isNotProduction);
+        ComposicionProducto::preventLazyLoading($isNotProduction);
     }
 
     protected function defineSiteRoutes($site)
