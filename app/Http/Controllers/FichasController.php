@@ -69,7 +69,7 @@ class FichasController extends Controller
         Carbon::setLocale(app()->getLocale());
 
         $site = get_site();
-        $ajustes = DB::connection('site')->table('ajustes')->first();
+        $ajustes = get_ajustes();
 
         // Redirigir a mesas si el modo operación es 'mesas'
         if ($ajustes && $ajustes->modo_operacion === 'mesas') {
@@ -238,7 +238,7 @@ class FichasController extends Controller
         ]);
 
         // Si es un evento (tipo 4) y estamos en modo agencia, notificar a usuarios
-        $ajustes = \DB::connection('site')->table('ajustes')->first();
+        $ajustes = get_ajustes();
         if ($request->tipo == 4 && $ajustes && $ajustes->modo_operacion === 'agencia_eventos') {
             $this->notificarNuevoEvento($ficha);
         }
@@ -337,7 +337,7 @@ class FichasController extends Controller
             'es_infantil' => ($request->tipo == 2 && $request->boolean('es_infantil')),
         ]);
 
-        $ajustes = \DB::connection('site')->table('ajustes')->first();
+        $ajustes = get_ajustes();
         if ($ajustes && $ajustes->modo_operacion === 'agencia_eventos') {
             return redirect()->route('eventos.gestion.index')
                 ->with('success', __('Evento actualizado con éxito.'));
@@ -391,7 +391,7 @@ class FichasController extends Controller
 
     public function download(string $uuid)
     {
-        $ficha = Ficha::with(['productos.producto', 'servicios.servicio', 'camarero'])
+        $ficha = Ficha::with(['productos.producto', 'servicios.servicio', 'camarero', 'gastos'])
             ->where('uuid', $uuid)
             ->first();
 
@@ -401,13 +401,10 @@ class FichasController extends Controller
 
         $ficha->precio = $this->fichaService->calcularImporte($ficha);
 
-        // Calcular totales con consultas directas
-        $ficha->total_consumos = FichaProducto::where('id_ficha', $ficha->uuid)->sum('precio');
-        $ficha->total_servicios = FichaServicio::where('id_ficha', $ficha->uuid)->sum('precio');
-        $ficha->total_gastos = FichaGasto::where('id_ficha', $ficha->uuid)->sum('precio');
-
-        // Recargar las relaciones forzando una consulta fresca
-        $ficha->load(['productos.producto', 'servicios.servicio', 'gastos']);
+        // Totales desde relaciones ya cargadas (sin queries adicionales)
+        $ficha->total_consumos = $ficha->productos->sum('precio');
+        $ficha->total_servicios = $ficha->servicios->sum('precio');
+        $ficha->total_gastos = $ficha->gastos->sum('precio');
 
         $fechaCambiada = Carbon::parse($ficha->fecha)->todateString();
 
@@ -858,7 +855,7 @@ class FichasController extends Controller
     public function usuarios($uuid)
     {
         $ficha = Ficha::find($uuid);
-        $ajustes = DB::connection('site')->table('ajustes')->first();
+        $ajustes = get_ajustes();
 
         $ficha->precio = $this->fichaService->calcularImporte($ficha);
         $site = get_site();
@@ -936,11 +933,11 @@ class FichasController extends Controller
         $ficha = Ficha::with(['productos.producto', 'servicios.servicio', 'usuarios', 'gastos'])->find($uuid);
         $ficha->precio = $this->fichaService->calcularImporte($ficha);
 
-        // Calcular totales con consultas directas (igual que ObtenerImporteFicha)
-        $total_consumos = FichaProducto::where('id_ficha', $ficha->uuid)->sum('precio');
+        // Totales desde relaciones ya cargadas en eager loading (sin queries adicionales)
+        $total_consumos = $ficha->productos->sum('precio');
         $ficha->total_consumos = $total_consumos;
 
-        $total_servicios = FichaServicio::where('id_ficha', $ficha->uuid)->sum('precio');
+        $total_servicios = $ficha->servicios->sum('precio');
         $ficha->total_servicios = $total_servicios;
 
         $total_comensales = 0;
@@ -948,10 +945,9 @@ class FichasController extends Controller
         if ($ficha->tipo == 3) {
             $total_comensales = 1;
         } else {
-            // Usar consultas directas en lugar de relaciones cargadas
-            $total_invitados = FichaUsuario::where('id_ficha', $ficha->uuid)->sum('invitados');
-            $total_ninos = FichaUsuario::where('id_ficha', $ficha->uuid)->sum('ninos');
-            $total_comensales = FichaUsuario::where('id_ficha', $ficha->uuid)->count() + $total_invitados + $total_ninos;
+            $total_invitados = $ficha->usuarios->sum('invitados');
+            $total_ninos = $ficha->usuarios->sum('ninos');
+            $total_comensales = $ficha->usuarios->count() + $total_invitados + $total_ninos;
         }
         // De momento los invitados de grupo no cuentan
         // if ($ficha->invitados_grupo > 0) {
@@ -967,8 +963,8 @@ class FichasController extends Controller
             $divisorPrecio = $total_comensales - $total_ninos;
         }
 
-        // Calcular total gastos con consulta directa
-        $total_gastos = FichaGasto::where('id_ficha', $ficha->uuid)->sum('precio');
+        // Calcular total gastos desde relación ya cargada (sin query adicional)
+        $total_gastos = $ficha->gastos->sum('precio');
         $ficha->total_gastos = $total_gastos;
 
         if ($divisorPrecio == 0) {
@@ -1069,7 +1065,7 @@ class FichasController extends Controller
         // NO sumar invitados aquí, se calculan por separado
         $ficha->precio = $this->fichaService->calcularImporte($ficha, false);
         $gastosFicha = FichaGasto::where('id_ficha', $uuid)->get();
-        $ajustes = DB::connection('site')->table('ajustes')->first();
+        $ajustes = get_ajustes();
         //Insertamos en la tabla ficha_recibos los gastos de la ficha
         foreach ($gastosFicha as $gastoFicha) {
             FichaRecibo::create([

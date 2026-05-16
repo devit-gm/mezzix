@@ -52,7 +52,7 @@ Route::middleware(['detect.site', 'auth'])->group(function () {
     // Ruta raíz dinámica según modo de operación
     Route::get('/', function () {
         try {
-            $ajustes = \App\Models\Ajustes::first();
+            $ajustes = get_ajustes();
             $modoOperacion = $ajustes->modo_operacion ?? 'fichas';
         } catch (\Exception $e) {
             \Log::warning('Tabla ajustes no encontrada en ruta raíz', ['error' => $e->getMessage()]);
@@ -72,7 +72,7 @@ Route::middleware(['detect.site', 'auth'])->group(function () {
 
     Route::get('/home', function () {
         try {
-            $ajustes = \App\Models\Ajustes::first();
+            $ajustes = get_ajustes();
             $modoOperacion = $ajustes->modo_operacion ?? 'fichas';
         } catch (\Exception $e) {
             \Log::warning('Tabla ajustes no encontrada en ruta /home', ['error' => $e->getMessage()]);
