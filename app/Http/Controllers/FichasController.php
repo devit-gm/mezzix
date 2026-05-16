@@ -173,16 +173,16 @@ class FichasController extends Controller
 
             // Agregar información de si el usuario está apuntado (para eventos tipo 4)
             if ($ficha->tipo == 4) {
-                // Consulta directa a la base de datos para eventos tipo 4
-                $ficha->apuntado = FichaUsuario::where('id_ficha', $ficha->uuid)
-                    ->where('user_id', Auth::id())
-                    ->first();
+                // Usar la relación inscritos ya cargada en memoria (evita N+1)
+                $ficha->apuntado = $ficha->inscritos->firstWhere('user_id', Auth::id());
 
-                // Si la relación inscritos está vacía, recargarla para el cálculo de totales
+                // Recalcular totales usando la colección en memoria si está vacía
                 if ($ficha->inscritos->isEmpty()) {
-                    $inscritosReales = FichaUsuario::where('id_ficha', $ficha->uuid)->get();
-                    $ficha->total_comensales = $inscritosReales->sum(fn($u) => 1 + ($u->invitados ?? 0) + ($u->ninos ?? 0));
-                    $ficha->total_ninos = $inscritosReales->sum(fn($u) => $u->ninos ?? 0);
+                    $ficha->total_comensales = 0;
+                    $ficha->total_ninos = 0;
+                } else {
+                    $ficha->total_comensales = $ficha->inscritos->sum(fn($u) => 1 + ($u->invitados ?? 0) + ($u->ninos ?? 0));
+                    $ficha->total_ninos = $ficha->inscritos->sum(fn($u) => $u->ninos ?? 0);
                 }
 
                 // En modo agencia_eventos, actualizar inscritos_actuales

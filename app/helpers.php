@@ -20,7 +20,7 @@ if (!function_exists('productos_menu')) {
     {
         return Cache::rememberForever('productos_menu', function () {
             return Producto::on('site')
-                ->with(['familiaObj', 'componentes', 'fichas'])
+                ->with(['familiaObj', 'componentes'])
                 ->orderBy('nombre')
                 ->get();
         });
@@ -118,7 +118,7 @@ if (!function_exists('fichaRoute')) {
     function fichaRoute($action, $parameters = [])
     {
         try {
-            $ajustes = \App\Models\Ajustes::first();
+            $ajustes = get_ajustes();
             $modoOperacion = $ajustes?->modo_operacion ?? 'fichas';
         } catch (\Exception $e) {
             // Fallback seguro si la tabla no existe o hay error de BD

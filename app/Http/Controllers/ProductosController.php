@@ -20,13 +20,12 @@ class ProductosController extends Controller
     public function __construct()
     {
         $this->middleware(function ($request, $next) {
-            $domain = $request->getHost();
-            $site = Site::where('dominio', $domain)->first();
-            
+            $site = get_site();
+
             if (!$site) {
                 abort(404, 'Sitio no encontrado.');
             }
-            
+
             if ($site->central == 1) {
                 abort(403, 'No tiene acceso a este recurso.');
             }
@@ -41,7 +40,7 @@ class ProductosController extends Controller
     {
         $productos = productos_menu();
         $ajustes = \App\Models\Ajustes::first();
-        
+
         // Mantener lógica de borrable y precio
         foreach ($productos as $producto) {
             // Reemplazar familia con su relación real si existe la relación cargada
@@ -63,7 +62,6 @@ class ProductosController extends Controller
             }
         }
         return view('productos.index', compact('productos', 'ajustes'));
-
     }
 
     /**
@@ -80,10 +78,10 @@ class ProductosController extends Controller
             'precio' => 'required',
             'iva' => 'nullable|numeric|min:0|max:100'
         ]);
-        
+
         // Procesar y redimensionar imagen
         $imageName = ImageService::processAndSave($request->imagen, 'public/images');
-        
+
         // Copiar a public/images para compatibilidad
         $sourcePath = storage_path('app/public/images/' . $imageName);
         $destPath = public_path('images/' . $imageName);
@@ -100,11 +98,11 @@ class ProductosController extends Controller
             'ean13' => $request->ean13,
             'iva' => $request->iva ?? 21
         ]);
-        
+
         // 🚀 OPTIMIZACIÓN: Invalidar caché de productos
         \Cache::forget("productos_familia_{$request->familia}");
         \Cache::forget('productos_menu');
-        
+
         return redirect()->route('productos.index')
             ->with('success', __('Producto creado con éxito.'));
     }
@@ -152,10 +150,10 @@ class ProductosController extends Controller
             if (File::exists(storage_path('app/public/images') . '/'  . $producto->imagen)) {
                 File::delete(storage_path('app/public/images') . '/'  . $producto->imagen);
             }
-            
+
             // Procesar y redimensionar imagen
             $imageName = ImageService::processAndSave($request->imagen, 'public/images');
-            
+
             // Copiar a public/images para compatibilidad
             $sourcePath = storage_path('app/public/images/' . $imageName);
             $destPath = public_path('images/' . $imageName);
@@ -174,12 +172,12 @@ class ProductosController extends Controller
             'ean13' => $request->ean13,
             'iva' => $request->iva ?? 21
         ]);
-        
+
         // 🚀 OPTIMIZACIÓN: Invalidar caché de productos (familia actual y anterior)
         \Cache::forget("productos_familia_{$request->familia}");
         \Cache::forget("productos_familia_{$producto->getOriginal('familia')}");
         \Cache::forget('productos_menu');
-        
+
         return redirect()->route('productos.index')
             ->with('success', __('Producto actualizado con éxito.'));
     }
@@ -191,17 +189,17 @@ class ProductosController extends Controller
     {
         $producto = Producto::find($id);
         $familiaId = $producto->familia; // Guardar antes de borrar
-        
+
         if (File::exists(public_path('images') . '/'  . $producto->imagen)) {
             File::delete(public_path('images') . '/'  . $producto->imagen);
         }
         ComposicionProducto::where('id_producto', $id)->delete();
         $producto->delete();
-        
+
         // 🚀 OPTIMIZACIÓN: Invalidar caché de productos
         \Cache::forget("productos_familia_{$familiaId}");
         \Cache::forget('productos_menu');
-        
+
         return redirect()->route('productos.index')
             ->with('success', __('Producto eliminado con éxito'));
     }
@@ -278,7 +276,7 @@ class ProductosController extends Controller
         $componentesActuales = ComposicionProducto::where('id_producto', $id)
             ->pluck('id_componente')
             ->toArray();
-        
+
         $componentes = Producto::where('combinado', 0)->orderBy('nombre')->get();
         foreach ($componentes as $componente) {
             $componente->familia = in_array($componente->uuid, $componentesActuales) ? 1 : 0;
@@ -318,7 +316,7 @@ class ProductosController extends Controller
         $componentesActuales = ComposicionProducto::where('id_producto', $id)
             ->pluck('id_componente')
             ->toArray();
-        
+
         $componentes = Producto::where('combinado', 0)->orderBy('nombre')->get();
         foreach ($componentes as $componente) {
             $componente->familia = in_array($componente->uuid, $componentesActuales) ? 1 : 0;
@@ -335,14 +333,14 @@ class ProductosController extends Controller
             $productos = $request->stock;
             $uuids = $request->uuid;
             $stockService = new \App\Services\StockNotificationService();
-            
+
             foreach ($uuids as $uuid) {
                 $stockAnterior = Producto::where('uuid', $uuid)->value('stock');
-                
+
                 Producto::where('uuid', $uuid)->update([
                     'stock' =>  $productos[$uuid]
                 ]);
-                
+
                 // Si el stock ha disminuido, verificar si hay que notificar
                 if ($productos[$uuid] < $stockAnterior) {
                     $stockService->verificarYNotificar($uuid);
