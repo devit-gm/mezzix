@@ -9,7 +9,7 @@ use App\Models\Producto;
 if (!function_exists('servicios_menu')) {
     function servicios_menu()
     {
-        return Cache::rememberForever('servicios_menu', function () {
+        return Cache::remember('servicios_menu', 3600, function () {
             return Servicio::on('site')->get();
         });
     }
@@ -18,7 +18,7 @@ if (!function_exists('servicios_menu')) {
 if (!function_exists('productos_menu')) {
     function productos_menu()
     {
-        return Cache::rememberForever('productos_menu', function () {
+        return Cache::remember('productos_menu', 3600, function () {
             return Producto::on('site')
                 ->with(['familiaObj', 'componentes'])
                 ->orderBy('nombre')
@@ -30,7 +30,7 @@ if (!function_exists('productos_menu')) {
 if (!function_exists('familias_menu')) {
     function familias_menu()
     {
-        return Cache::rememberForever('familias_menu', function () {
+        return Cache::remember('familias_menu', 3600, function () {
             return Familia::on('site')->get();
         });
     }
@@ -39,7 +39,7 @@ if (!function_exists('familias_menu')) {
 if (!function_exists('ajustes_menu')) {
     function ajustes_menu()
     {
-        return Cache::rememberForever('ajustes_menu', function () {
+        return Cache::remember('ajustes_menu', 3600, function () {
             return Ajustes::on('site')->where('id', 1)->first();
         });
     }
