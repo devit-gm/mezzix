@@ -883,7 +883,7 @@ class FichasController extends Controller
 
         //Si la ficha está cerrada (estado = 1) solo mostramos los usuarios que están en FichaUsuario
         if ($ficha->estado == 1 && !$esAgenciaEventos) {
-            $usuariosFicha = [];
+            $usuariosFicha = collect();
             //Buscar los usuarios que están dentro de FichaUsuario
             $usuarios = User::where('site_id', $site->id)->orderBy('id')->get();
             $fichasUsuariosIds = FichaUsuario::where('id_ficha', $ficha->uuid)
@@ -892,7 +892,7 @@ class FichasController extends Controller
             foreach ($usuarios as $usuario) {
                 //si el user_id está en FichaUsuario de la ficha lo ponemos como marcado
                 if (isset($fichasUsuariosIds[$usuario->id])) {
-                    $usuariosFicha[] = $usuario;
+                    $usuariosFicha->push($usuario);
                 }
             }
         }
